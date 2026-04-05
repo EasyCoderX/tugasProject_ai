@@ -52,7 +52,7 @@ Important rules:
 - Respond with ONLY the JSON object, nothing else`;
 
     const response = await zai.chat.completions.create({
-      model: process.env.VISION_MODEL || 'glm-4v-flash',
+      model: process.env.VISION_MODEL || 'glm-4v-plus',
       messages: [
         {
           role: 'user',
