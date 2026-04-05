@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     const zai = await ZAI.create();
 
     const response = await zai.audio.tts.create({
+      model: process.env.TTS_MODEL || 'tts-1',
       input: trimmedText,
       voice: voice,
       speed: validSpeed,
