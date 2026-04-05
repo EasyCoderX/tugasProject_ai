@@ -51,7 +51,8 @@ Important rules:
 - If the image is blurry or unclear, still try your best to identify it
 - Respond with ONLY the JSON object, nothing else`;
 
-    const response = await zai.chat.completions.createVision({
+    const response = await zai.chat.completions.create({
+      model: process.env.VISION_MODEL || 'glm-4v-flash',
       messages: [
         {
           role: 'user',
@@ -64,7 +65,6 @@ Important rules:
           ],
         },
       ],
-      thinking: { type: 'disabled' },
     });
 
     const content = response.choices[0]?.message?.content;
