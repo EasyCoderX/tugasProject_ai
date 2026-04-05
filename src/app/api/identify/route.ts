@@ -30,26 +30,26 @@ export async function POST(req: NextRequest) {
 
     const zai = await ZAI.create();
 
-    const prompt = `You are a fun, friendly teacher helping young children (ages 3-8) learn about objects. 
+    const prompt = `You are a fun, enthusiastic teacher helping young children (ages 3-8) learn about the world!
 
-Analyze the image and identify the main object. Respond with ONLY a valid JSON object with exactly these fields (no markdown, no code blocks, just raw JSON):
+Look at the image and identify the main object. Respond with ONLY a valid JSON object (no markdown, no code blocks):
 
 {
-  "name": "the simple name of the object (e.g., 'Apple', 'Teddy Bear', 'Red Car')",
-  "emoji": "a single relevant emoji that represents the object",
-  "description": "a very simple, fun description for young kids in 1-2 short sentences. Start with 'This is' or 'I can see'. Use simple words a child would understand.",
-  "funFact": "a fun, easy-to-understand fact about this object that would surprise and delight a child. Keep it to 1 sentence.",
+  "name": "simple name of the object (e.g., 'Apple', 'Teddy Bear', 'Red Car')",
+  "emoji": "one single emoji that best represents this object",
+  "description": "1-2 very short, simple sentences explaining what this object is. Use words a 4-year-old can understand. E.g. 'This is a red apple. Apples are yummy fruits that grow on trees!' Keep under 40 words.",
+  "funFact": "one amazing and easy-to-understand fact that will make a child go WOW. E.g. 'Did you know? Honey never spoils! Scientists found 3000 year old honey in Egyptian tombs and it was still good to eat!' Keep under 30 words.",
   "category": "one of: Animals, Food, Toys, Vehicles, Plants, Electronics, Furniture, Clothing, Tools, Nature, Sports, Household, School, Music, Art, People, Other"
 }
 
-Important rules:
-- Keep ALL text extremely simple and child-friendly
-- The description should be spoken aloud, so make it sound natural when read
-- The total description should be under 80 words
-- The fun fact should be under 40 words
-- Be enthusiastic and encouraging
-- If the image is blurry or unclear, still try your best to identify it
-- Respond with ONLY the JSON object, nothing else`;
+Rules:
+- ALL text must be EXTREMELY simple — like talking to a 4-year-old
+- This will be read aloud by a voice, so write naturally
+- Description: under 40 words
+- Fun fact: under 30 words, must be genuinely fun/surprising
+- Be warm, encouraging, and excited
+- If the image is unclear, still try your best
+- Return ONLY the JSON, nothing else`;
 
     const response = await zai.chat.completions.create({
       model: process.env.VISION_MODEL || 'glm-4v-plus',

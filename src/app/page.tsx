@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star } from 'lucide-react';
+import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star, Settings, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,6 +14,12 @@ interface IdentifyResult {
   description: string;
   funFact: string;
   category: string;
+}
+
+interface VoiceSettings {
+  pitch: number;
+  rate: number;
+  voiceName: string;
 }
 
 interface HistoryItem extends IdentifyResult {
@@ -37,6 +43,14 @@ export default function Home() {
   const [cameraLoading, setCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
+    pitch: 1.4,
+    rate: 0.85,
+    voiceName: '',
+  });
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const voicesLoaded = useRef(false);
 
   // Helper: find the correct camera device by enumerating hardware devices
   const getCameraStream = useCallback(async (preferBack: boolean) => {
@@ -177,6 +191,40 @@ export default function Home() {
     setCameraActive(false);
   }, []);
 
+  // Load available voices for the settings panel
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+        voicesLoaded.current = true;
+
+        // Auto-select a friendly voice if not set
+        if (!voiceSettings.voiceName) {
+          const friendlyVoice = voices.find(
+            (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Karen') || v.name.includes('Moira') || v.name.includes('Tessa') || v.name.includes('Zuzana'))
+          ) || voices.find(
+            (v) => v.lang.startsWith('en') && v.name.includes('Google')
+          ) || voices.find(
+            (v) => v.lang.startsWith('en')
+          );
+          if (friendlyVoice) {
+            setVoiceSettings((prev) => ({ ...prev, voiceName: friendlyVoice.name }));
+          }
+        }
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -201,6 +249,19 @@ export default function Home() {
     }
   }, []);
 
+  // Build a fun, kid-friendly speech script from the result
+  const buildKidScript = useCallback((result: IdentifyResult) => {
+    const greetings = [
+      `Ooh! Look at that! It's a ${result.name}!`,
+      `Wow! I found a ${result.name}! How cool is that?`,
+      `Ta-da! That's a ${result.name}!`,
+      `Yay! It's a ${result.name}!`,
+      `Great job pointing the camera! This is a ${result.name}!`,
+    ];
+    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+    return `${greeting} ${result.description} And here's a fun fact! ${result.funFact} Keep exploring!`;
+  }, []);
+
   // Play voice using browser's built-in Web Speech API (no server needed)
   const playVoice = useCallback((result?: IdentifyResult) => {
     const target = result || currentResult;
@@ -214,30 +275,35 @@ export default function Home() {
     setIsSpeaking(true);
 
     try {
-      const utterance = new SpeechSynthesisUtterance(target.description);
-      utterance.rate = 0.9;   // Slightly slow for kids
-      utterance.pitch = 1.1;  // Slightly higher pitch, more friendly
+      const text = buildKidScript(target);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = voiceSettings.rate;    // Slower for kids (0.85)
+      utterance.pitch = voiceSettings.pitch;   // Higher pitch for fun voice (1.4)
       utterance.volume = 1;
 
-      // Try to pick a good English voice, fallback to default
+      // Select the user's chosen voice, or a friendly default
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(
-        (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google'))
-      ) || voices.find(
-        (v) => v.lang.startsWith('en')
-      );
-      if (preferred) {
-        utterance.voice = preferred;
+      if (voiceSettings.voiceName) {
+        const selected = voices.find((v) => v.name === voiceSettings.voiceName);
+        if (selected) utterance.voice = selected;
+      } else {
+        const preferred = voices.find(
+          (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google') || v.name.includes('Karen') || v.name.includes('Moira'))
+        ) || voices.find((v) => v.lang.startsWith('en'));
+        if (preferred) utterance.voice = preferred;
       }
 
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
 
-      window.speechSynthesis.speak(utterance);
+      // Small delay to ensure speech synthesis is ready (fixes Chrome bug)
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 100);
     } catch {
       setIsSpeaking(false);
     }
-  }, [currentResult]);
+  }, [currentResult, voiceSettings, buildKidScript]);
 
   // Identify image from base64 data
   const identifyFromImage = useCallback(async (imageData: string) => {
@@ -586,18 +652,17 @@ export default function Home() {
                 </Button>
               </motion.div>
 
-              {/* Voice Button */}
+              {/* Voice Settings Button */}
               <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
                 <Button
-                  onClick={() => playVoice()}
-                  disabled={isSpeaking}
-                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white shadow-lg shadow-purple-300/50 disabled:opacity-50 text-xl"
+                  onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                  className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full shadow-lg disabled:opacity-50 text-xl transition-colors ${
+                    showVoiceSettings
+                      ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-blue-300/50'
+                      : 'bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white shadow-purple-300/50'
+                  }`}
                 >
-                  {isSpeaking ? (
-                    <VolumeX className="h-6 w-6" />
-                  ) : (
-                    <Volume2 className="h-6 w-6" />
-                  )}
+                  <Settings className="h-6 w-6" />
                 </Button>
               </motion.div>
             </>
@@ -825,6 +890,151 @@ export default function Home() {
             </p>
           </motion.div>
         )}
+
+        {/* Voice Settings Panel */}
+        <AnimatePresence>
+          {showVoiceSettings && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="h-5 w-5 text-purple-500" />
+                    <h3 className="font-bold text-gray-800">Voice Settings</h3>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 ml-auto text-xs">
+                      Kid Mode
+                    </Badge>
+                  </div>
+
+                  {/* Voice Selection */}
+                  <div className="mb-4">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      🎙️ Voice
+                    </label>
+                    <select
+                      value={voiceSettings.voiceName}
+                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, voiceName: e.target.value }))}
+                      className="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-colors"
+                    >
+                      <option value="">Auto (Best available)</option>
+                      {availableVoices
+                        .filter((v) => v.lang.startsWith('en') || v.lang.startsWith('zh') || v.lang.startsWith('id'))
+                        .map((v) => (
+                          <option key={v.name} value={v.name}>
+                            {v.name} ({v.lang})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Pitch Control */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        🎵 Pitch
+                      </label>
+                      <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        {voiceSettings.pitch.toFixed(1)}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={voiceSettings.pitch}
+                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                      className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Low</span>
+                      <span className="text-purple-500 font-medium">Default: 1.4</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* Speed Control */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        ⚡ Speed
+                      </label>
+                      <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        {voiceSettings.rate.toFixed(2)}x
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="1.5"
+                      step="0.05"
+                      value={voiceSettings.rate}
+                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                      className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Slow</span>
+                      <span className="text-purple-500 font-medium">Default: 0.85</span>
+                      <span>Fast</span>
+                    </div>
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      🎭 Presets
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setVoiceSettings({ pitch: 1.6, rate: 0.75, voiceName: voiceSettings.voiceName })}
+                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
+                          voiceSettings.pitch === 1.6 && voiceSettings.rate === 0.75
+                            ? 'bg-yellow-100 border-2 border-yellow-400 text-yellow-700'
+                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200'
+                        }`}
+                      >
+                        👶 Toddler
+                      </button>
+                      <button
+                        onClick={() => setVoiceSettings({ pitch: 1.4, rate: 0.85, voiceName: voiceSettings.voiceName })}
+                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
+                          voiceSettings.pitch === 1.4 && voiceSettings.rate === 0.85
+                            ? 'bg-green-100 border-2 border-green-400 text-green-700'
+                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-green-50 hover:border-green-200'
+                        }`}
+                      >
+                        🧒 Kid
+                      </button>
+                      <button
+                        onClick={() => setVoiceSettings({ pitch: 1.0, rate: 1.0, voiceName: voiceSettings.voiceName })}
+                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
+                          voiceSettings.pitch === 1.0 && voiceSettings.rate === 1.0
+                            ? 'bg-blue-100 border-2 border-blue-400 text-blue-700'
+                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200'
+                        }`}
+                      >
+                        🧑 Normal
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Test Button */}
+                  <button
+                    onClick={() => playVoice()}
+                    className="w-full mt-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                    Test Voice
+                  </button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Speaking indicator */}
         <AnimatePresence>
