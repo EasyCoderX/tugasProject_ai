@@ -46,19 +46,26 @@ export default function Home() {
       setError(null);
       setCameraLoading(true);
 
-      // Try specified facing mode first, fallback to any camera (desktop browsers)
+      // Strong preference for back camera: try exact first, then ideal, then any
       let stream: MediaStream | null = null;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         });
       } catch {
-        // Fallback: try without facingMode constraint (desktop browsers)
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        } catch {
+          // Fallback: any available camera (desktop browsers)
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        }
       }
 
       streamRef.current = stream;
@@ -245,14 +252,21 @@ export default function Home() {
       let stream: MediaStream | null = null;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: newFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: { exact: newFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         });
       } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: newFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        }
       }
       streamRef.current = stream;
       if (videoRef.current) {
