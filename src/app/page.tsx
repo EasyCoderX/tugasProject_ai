@@ -309,7 +309,7 @@ export default function Home() {
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
               showCameraFeed ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'
             }`}
-            style={{ transform: 'scaleX(-1)' }}
+
           />
 
           {/* Captured image overlay */}
