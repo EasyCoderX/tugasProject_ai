@@ -26,8 +26,6 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const [cameraActive, setCameraActive] = useState(false);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [currentResult, setCurrentResult] = useState<IdentifyResult | null>(null);
@@ -186,9 +184,8 @@ export default function Home() {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -199,38 +196,44 @@ export default function Home() {
     setCurrentResult(null);
     setError(null);
     setIsSpeaking(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
     }
   }, []);
 
-  // Play voice
-  const playVoice = useCallback(async (result?: IdentifyResult) => {
+  // Play voice using browser's built-in Web Speech API (no server needed)
+  const playVoice = useCallback((result?: IdentifyResult) => {
     const target = result || currentResult;
     if (!target) return;
 
+    // Cancel any ongoing speech
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
     setIsSpeaking(true);
+
     try {
-      const response = await fetch('/api/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: target.description }),
-      });
+      const utterance = new SpeechSynthesisUtterance(target.description);
+      utterance.rate = 0.9;   // Slightly slow for kids
+      utterance.pitch = 1.1;  // Slightly higher pitch, more friendly
+      utterance.volume = 1;
 
-      if (!response.ok) throw new Error('Failed to generate voice');
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-
-      if (audioRef.current) {
-        audioRef.current.pause();
-        URL.revokeObjectURL(audioRef.current.src);
+      // Try to pick a good English voice, fallback to default
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(
+        (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google'))
+      ) || voices.find(
+        (v) => v.lang.startsWith('en')
+      );
+      if (preferred) {
+        utterance.voice = preferred;
       }
 
-      audioRef.current = new Audio(url);
-      audioRef.current.onended = () => setIsSpeaking(false);
-      audioRef.current.onerror = () => setIsSpeaking(false);
-      await audioRef.current.play();
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
     } catch {
       setIsSpeaking(false);
     }
