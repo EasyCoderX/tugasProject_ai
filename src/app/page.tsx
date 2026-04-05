@@ -2,12 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, Loader2, Eye, BookOpen, Star } from 'lucide-react';
+import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, Eye, BookOpen, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface IdentifyResult {
   name: string;
@@ -37,23 +36,73 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
 
   // Start camera
   const startCamera = useCallback(async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
+      setCameraLoading(true);
+
+      // Try environment-facing first (mobile), fallback to any camera (desktop)
+      let stream: MediaStream | null = null;
+      const constraints: MediaStreamConstraints = {
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
-      });
+      };
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        // Fallback: try without facingMode constraint (desktop browsers)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      }
+
       streamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Wait for the video to be ready before showing
+        await new Promise<void>((resolve, reject) => {
+          const video = videoRef.current!;
+          const onLoaded = () => {
+            cleanup();
+            resolve();
+          };
+          const onError = () => {
+            cleanup();
+            reject(new Error('Failed to load video stream'));
+          };
+          const cleanup = () => {
+            video.removeEventListener('loadeddata', onLoaded);
+            video.removeEventListener('error', onError);
+          };
+          video.addEventListener('loadeddata', onLoaded);
+          video.addEventListener('error', onError);
+          // Also set a timeout in case events don't fire
+          setTimeout(() => {
+            cleanup();
+            resolve();
+          }, 3000);
+        });
+
         await videoRef.current.play();
       }
+
       setCameraActive(true);
-    } catch {
-      setError('Camera access denied. Please allow camera access and try again!');
+      setCameraLoading(false);
+    } catch (err) {
+      setCameraLoading(false);
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('Camera access denied. Please allow camera access and try again!');
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+        setError('No camera found on this device.');
+      } else {
+        setError('Could not start the camera. Please try again!');
+      }
     }
   }, []);
 
@@ -63,19 +112,25 @@ export default function Home() {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setCameraActive(false);
   }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopCamera();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
     };
-  }, [stopCamera]);
+  }, []);
 
   // Capture image and identify
   const captureAndIdentify = useCallback(async () => {
@@ -84,12 +139,12 @@ export default function Home() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = canvas.toDataURL('image/jpeg', 0.8);
 
     setCapturedImage(imageData);
@@ -181,6 +236,11 @@ export default function Home() {
     }
   }, [cameraActive, stopCamera, startCamera, resetView]);
 
+  // Determine what to show in the viewport area
+  const showCameraFeed = cameraActive && !capturedImage;
+  const showCaptured = !!capturedImage;
+  const showPlaceholder = !cameraActive && !capturedImage;
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-orange-50 via-yellow-50 to-green-50">
       {/* Header */}
@@ -201,7 +261,7 @@ export default function Home() {
                 What&apos;s This?
               </h1>
               <p className="text-xs sm:text-sm text-white/90 font-medium">
-                Point, Snap & Learn!
+                Point, Snap &amp; Learn!
               </p>
             </div>
           </div>
@@ -240,51 +300,41 @@ export default function Home() {
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         {/* Camera / Image Display */}
         <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-black aspect-[4/3] max-h-[60vh]">
-          {/* Corner decorations */}
-          <div className="absolute top-3 left-3 w-8 h-8 border-t-3 border-l-3 border-yellow-400 rounded-tl-lg z-10 pointer-events-none" />
-          <div className="absolute top-3 right-3 w-8 h-8 border-t-3 border-r-3 border-yellow-400 rounded-tr-lg z-10 pointer-events-none" />
-          <div className="absolute bottom-3 left-3 w-8 h-8 border-b-3 border-l-3 border-yellow-400 rounded-bl-lg z-10 pointer-events-none" />
-          <div className="absolute bottom-3 right-3 w-8 h-8 border-b-3 border-r-3 border-yellow-400 rounded-br-lg z-10 pointer-events-none" />
+          {/* Video element - always rendered, visibility controlled by CSS */}
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+              showCameraFeed ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'
+            }`}
+            style={{ transform: 'scaleX(-1)' }}
+          />
 
-          {/* Crosshair overlay */}
-          {cameraActive && !capturedImage && !isIdentifying && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className="w-24 h-24 border-2 border-white/40 rounded-full flex items-center justify-center">
-                <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-              </div>
-            </div>
-          )}
-
-          {/* Camera feed */}
-          <AnimatePresence mode="wait">
-            {cameraActive && !capturedImage ? (
-              <motion.video
-                key="camera"
-                ref={videoRef}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-            ) : capturedImage ? (
+          {/* Captured image overlay */}
+          <AnimatePresence>
+            {showCaptured && (
               <motion.img
-                key="captured"
-                src={capturedImage}
-                initial={{ opacity: 0, scale: 1.1 }}
+                initial={{ opacity: 0, scale: 1.05 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                src={capturedImage}
                 alt="Captured object"
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover z-[2]"
               />
-            ) : (
+            )}
+          </AnimatePresence>
+
+          {/* Placeholder (no camera active, no captured image) */}
+          <AnimatePresence>
+            {showPlaceholder && (
               <motion.div
-                key="placeholder"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-4 p-8"
+                className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-4 p-8 z-[3]"
               >
                 <motion.div
                   animate={{ y: [0, -8, 0] }}
@@ -303,6 +353,51 @@ export default function Home() {
             )}
           </AnimatePresence>
 
+          {/* Loading camera indicator */}
+          <AnimatePresence>
+            {cameraLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3 z-[5]"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <Camera className="h-12 w-12 text-yellow-400" />
+                </motion.div>
+                <p className="text-white text-lg font-bold">Starting Camera...</p>
+                <p className="text-white/70 text-sm">Please allow camera access</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Corner decorations - visible when camera is active */}
+          <div className={`absolute inset-0 pointer-events-none z-[4] transition-opacity duration-300 ${showCameraFeed ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="absolute top-3 left-3 w-8 h-8 border-t-[3px] border-l-[3px] border-yellow-400 rounded-tl-lg" />
+            <div className="absolute top-3 right-3 w-8 h-8 border-t-[3px] border-r-[3px] border-yellow-400 rounded-tr-lg" />
+            <div className="absolute bottom-3 left-3 w-8 h-8 border-b-[3px] border-l-[3px] border-yellow-400 rounded-bl-lg" />
+            <div className="absolute bottom-3 right-3 w-8 h-8 border-b-[3px] border-r-[3px] border-yellow-400 rounded-br-lg" />
+          </div>
+
+          {/* Crosshair overlay */}
+          <AnimatePresence>
+            {showCameraFeed && !isIdentifying && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex items-center justify-center z-[4] pointer-events-none"
+              >
+                <div className="w-24 h-24 border-2 border-white/40 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Identifying overlay */}
           <AnimatePresence>
             {isIdentifying && (
@@ -310,7 +405,7 @@ export default function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3 z-20"
+                className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3 z-[6]"
               >
                 <motion.div
                   animate={{ rotate: 360 }}
@@ -331,7 +426,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="absolute bottom-4 left-4 right-4 z-20"
+                className="absolute bottom-4 left-4 right-4 z-[7]"
               >
                 <div className="bg-red-500/90 backdrop-blur-sm text-white px-4 py-3 rounded-2xl text-sm font-medium text-center shadow-lg">
                   {error}
@@ -369,21 +464,19 @@ export default function Home() {
               </motion.div>
 
               {/* Voice Button */}
-              {currentResult && (
-                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                  <Button
-                    onClick={() => playVoice()}
-                    disabled={isSpeaking}
-                    className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white shadow-lg shadow-purple-300/50 disabled:opacity-50 text-xl"
-                  >
-                    {isSpeaking ? (
-                      <VolumeX className="h-6 w-6" />
-                    ) : (
-                      <Volume2 className="h-6 w-6" />
-                    )}
-                  </Button>
-                </motion.div>
-              )}
+              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
+                <Button
+                  onClick={() => playVoice()}
+                  disabled={isSpeaking}
+                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white shadow-lg shadow-purple-300/50 disabled:opacity-50 text-xl"
+                >
+                  {isSpeaking ? (
+                    <VolumeX className="h-6 w-6" />
+                  ) : (
+                    <Volume2 className="h-6 w-6" />
+                  )}
+                </Button>
+              </motion.div>
             </>
           ) : cameraActive ? (
             <>
