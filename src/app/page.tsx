@@ -40,34 +40,87 @@ export default function Home() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper: find the correct camera device by enumerating hardware devices
+  const getCameraStream = useCallback(async (preferBack: boolean) => {
+    // Step 1: Enumerate devices to find the exact camera by deviceId
+    try {
+      // Need a temporary stream first to get permission and device labels
+      const tempStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+      tempStream.getTracks().forEach((t) => t.stop());
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+
+      if (videoDevices.length > 1) {
+        // Look for back camera in device labels
+        const backKeywords = ['back', 'rear', 'environment', 'arriere', 'posterior', 'trasera', '后面'];
+        const frontKeywords = ['front', 'user', 'face', 'avant', 'delantera', '前面'];
+
+        let targetDevice: MediaDeviceInfo | undefined;
+
+        if (preferBack) {
+          // Find back camera: prefer labeled back, or pick the last device (usually back on mobile)
+          targetDevice = videoDevices.find((d) =>
+            backKeywords.some((k) => d.label.toLowerCase().includes(k))
+          );
+          if (!targetDevice) {
+            // On most phones, the last video device is the back camera
+            targetDevice = videoDevices[videoDevices.length - 1];
+          }
+        } else {
+          // Find front camera
+          targetDevice = videoDevices.find((d) =>
+            frontKeywords.some((k) => d.label.toLowerCase().includes(k))
+          );
+          if (!targetDevice) {
+            // Usually the first video device is the front camera
+            targetDevice = videoDevices[0];
+          }
+        }
+
+        if (targetDevice?.deviceId) {
+          return await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: targetDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        }
+      } else if (videoDevices.length === 1) {
+        // Only one camera — just use it
+        return await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: videoDevices[0].deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      }
+    } catch {
+      // If device enumeration fails, fall through to facingMode approach
+    }
+
+    // Step 2: Fallback to facingMode constraint
+    const facing = preferBack ? 'environment' : 'user';
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    } catch {
+      // Step 3: Last resort — any camera
+      return await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    }
+  }, []);
+
   // Start camera
-  const startCamera = useCallback(async (facing: 'environment' | 'user' = 'environment') => {
+  const startCamera = useCallback(async (preferBack: boolean = true) => {
     try {
       setError(null);
       setCameraLoading(true);
 
-      // Strong preference for back camera: try exact first, then ideal, then any
-      let stream: MediaStream | null = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-      } catch {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        } catch {
-          // Fallback: any available camera (desktop browsers)
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        }
-      }
-
+      const stream = await getCameraStream(preferBack);
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -99,7 +152,7 @@ export default function Home() {
         await videoRef.current.play();
       }
 
-      setFacingMode(facing);
+      setFacingMode(preferBack ? 'environment' : 'user');
       setCameraActive(true);
       setCameraLoading(false);
     } catch (err) {
@@ -112,7 +165,7 @@ export default function Home() {
         setError('Could not start the camera. Please try again!');
       }
     }
-  }, []);
+  }, [getCameraStream]);
 
   // Stop camera
   const stopCamera = useCallback(() => {
@@ -238,7 +291,7 @@ export default function Home() {
 
   // Switch camera (front/back)
   const switchCamera = useCallback(async () => {
-    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    const preferBack = facingMode !== 'environment';
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -249,25 +302,7 @@ export default function Home() {
     resetView();
     setCameraLoading(true);
     try {
-      let stream: MediaStream | null = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: newFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-      } catch {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: newFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        } catch {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        }
-      }
+      const stream = await getCameraStream(preferBack);
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -279,14 +314,14 @@ export default function Home() {
         });
         await videoRef.current.play();
       }
-      setFacingMode(newFacing);
+      setFacingMode(preferBack ? 'environment' : 'user');
       setCameraActive(true);
       setCameraLoading(false);
     } catch {
       setCameraLoading(false);
       setError('Could not switch camera.');
     }
-  }, [facingMode, resetView]);
+  }, [facingMode, resetView, getCameraStream]);
 
   // Upload image from gallery
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
