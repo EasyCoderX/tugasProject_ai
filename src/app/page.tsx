@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, Eye, BookOpen, Star } from 'lucide-react';
+import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,22 +37,22 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Start camera
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (facing: 'environment' | 'user' = 'environment') => {
     try {
       setError(null);
       setCameraLoading(true);
 
-      // Try environment-facing first (mobile), fallback to any camera (desktop)
+      // Try specified facing mode first, fallback to any camera (desktop browsers)
       let stream: MediaStream | null = null;
-      const constraints: MediaStreamConstraints = {
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      };
-
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
       } catch {
         // Fallback: try without facingMode constraint (desktop browsers)
         stream = await navigator.mediaDevices.getUserMedia({
@@ -92,6 +92,7 @@ export default function Home() {
         await videoRef.current.play();
       }
 
+      setFacingMode(facing);
       setCameraActive(true);
       setCameraLoading(false);
     } catch (err) {
@@ -132,53 +133,14 @@ export default function Home() {
     };
   }, []);
 
-  // Capture image and identify
-  const captureAndIdentify = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-    setCapturedImage(imageData);
-    setIsIdentifying(true);
+  // Reset to camera view
+  const resetView = useCallback(() => {
+    setCapturedImage(null);
     setCurrentResult(null);
     setError(null);
-
-    try {
-      const response = await fetch('/api/identify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageData }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to identify object');
-      }
-
-      const result: IdentifyResult = await response.json();
-      setCurrentResult(result);
-
-      // Add to history
-      setHistory((prev) => [
-        { ...result, id: Date.now().toString(), timestamp: new Date(), imageData },
-        ...prev,
-      ]);
-
-      // Auto-play voice
-      playVoice(result);
-    } catch {
-      setError('Could not identify the object. Please try again!');
-    } finally {
-      setIsIdentifying(false);
+    setIsSpeaking(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
     }
   }, []);
 
@@ -214,16 +176,125 @@ export default function Home() {
     }
   }, [currentResult]);
 
-  // Reset to camera view
-  const resetView = useCallback(() => {
-    setCapturedImage(null);
+  // Identify image from base64 data
+  const identifyFromImage = useCallback(async (imageData: string) => {
+    setCapturedImage(imageData);
+    setIsIdentifying(true);
     setCurrentResult(null);
     setError(null);
-    setIsSpeaking(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
+
+    try {
+      const response = await fetch('/api/identify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageData }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to identify object');
+      }
+
+      const result: IdentifyResult = await response.json();
+      setCurrentResult(result);
+
+      setHistory((prev) => [
+        { ...result, id: Date.now().toString(), timestamp: new Date(), imageData },
+        ...prev,
+      ]);
+
+      playVoice(result);
+    } catch {
+      setError('Could not identify the object. Please try again!');
+    } finally {
+      setIsIdentifying(false);
     }
-  }, []);
+  }, [playVoice]);
+
+  // Capture image from camera and identify
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+    await identifyFromImage(imageData);
+  }, [identifyFromImage]);
+
+  // Switch camera (front/back)
+  const switchCamera = useCallback(async () => {
+    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    resetView();
+    setCameraLoading(true);
+    try {
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: newFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      }
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await new Promise<void>((resolve) => {
+          const video = videoRef.current!;
+          const onLoaded = () => { video.removeEventListener('loadeddata', onLoaded); resolve(); };
+          video.addEventListener('loadeddata', onLoaded);
+          setTimeout(resolve, 3000);
+        });
+        await videoRef.current.play();
+      }
+      setFacingMode(newFacing);
+      setCameraActive(true);
+      setCameraLoading(false);
+    } catch {
+      setCameraLoading(false);
+      setError('Could not switch camera.');
+    }
+  }, [facingMode, resetView]);
+
+  // Upload image from gallery
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setCameraActive(false);
+      identifyFromImage(base64);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [identifyFromImage]);
 
   // Toggle camera
   const toggleCamera = useCallback(() => {
@@ -480,11 +551,15 @@ export default function Home() {
             </>
           ) : cameraActive ? (
             <>
-              {/* Info */}
+              {/* Switch Camera */}
               <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/80 shadow-md flex items-center justify-center text-2xl">
-                  <Eye className="h-6 w-6 text-gray-500" />
-                </div>
+                <Button
+                  onClick={switchCamera}
+                  disabled={cameraLoading || isIdentifying}
+                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/90 shadow-md hover:bg-white text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                >
+                  <SwitchCamera className="h-6 w-6" />
+                </Button>
               </motion.div>
 
               {/* Main Capture Button */}
@@ -502,12 +577,23 @@ export default function Home() {
                 </Button>
               </motion.div>
 
-              {/* Flash placeholder */}
+              {/* Upload from Gallery */}
               <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/80 shadow-md flex items-center justify-center text-2xl opacity-40">
-                  ⚡
-                </div>
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isIdentifying}
+                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/90 shadow-md hover:bg-white text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                >
+                  <ImagePlus className="h-6 w-6" />
+                </Button>
               </motion.div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </>
           ) : (
             <motion.div
