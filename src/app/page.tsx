@@ -63,15 +63,15 @@ const LANGUAGES = [
 ];
 
 const ACHIEVEMENT_DEFS = [
-  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍' },
-  { type: 'scan_5', title: 'Explorer', emoji: '🧭' },
-  { type: 'scan_10', title: 'Scientist', emoji: '🔬' },
-  { type: 'scan_20', title: 'Professor', emoji: '🎓' },
-  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' },
-  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' },
-  { type: 'spell_master', title: 'Spelling Bee', emoji: '📝' },
-  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬' },
-  { type: 'feedback_given', title: 'Helper', emoji: '⭐' },
+  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍', desc: 'Identify your very first object' },
+  { type: 'scan_5', title: 'Explorer', emoji: '🧭', desc: 'Identify 5 different objects' },
+  { type: 'scan_10', title: 'Scientist', emoji: '🔬', desc: 'Identify 10 different objects' },
+  { type: 'scan_20', title: 'Professor', emoji: '🎓', desc: 'Identify 20 different objects' },
+  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯', desc: 'Get a perfect score on a quiz' },
+  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩', desc: 'Complete a puzzle correctly' },
+  { type: 'spell_master', title: 'Spelling Bee', emoji: '📝', desc: 'Spell an object name correctly' },
+  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬', desc: 'Send your first chat message' },
+  { type: 'feedback_given', title: 'Helper', emoji: '⭐', desc: 'Submit app feedback' },
 ];
 
 // ==================== MAIN APP ====================
@@ -304,10 +304,13 @@ export default function HomePage() {
       const result: IdentifyResult = await res.json();
       setCurrentResult(result);
       setCapturedImage(rotated); setImageRotation(0);
-      setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
       if (user) {
-        fetchHistory();
+        // Save to DB history
+        fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated }) }).then(() => fetchHistory()).catch(() => {});
         fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
+      } else {
+        // Guest: just save locally
+        setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
       }
       doPlayVoice(result);
     } catch { setError('Could not identify. Try again!'); }
@@ -489,8 +492,29 @@ export default function HomePage() {
   const updateProfile = async (updates: { language?: string; theme?: string }) => {
     try {
       const res = await fetch('/api/auth/update', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
-      if (res.ok) { const data = await res.json(); setUser(data); }
+      if (res.ok) {
+        const data = await res.json();
+        // API returns user object directly after fix
+        const updatedUser = data.user || data;
+        if (updatedUser.id) setUser(updatedUser);
+      }
     } catch {}
+  };
+
+  // ==================== UPGRADE TO PRO ====================
+  const [upgrading, setUpgrading] = useState(false);
+  const upgradeToPro = async () => {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/auth/upgrade', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedUser = data.user || data;
+        if (updatedUser.id) setUser(updatedUser);
+        fetchAchievements();
+      }
+    } catch {}
+    setUpgrading(false);
   };
 
   // ==================== AUTH SCREEN ====================
@@ -619,7 +643,7 @@ export default function HomePage() {
                 <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
                 <p className="text-xs font-semibold text-yellow-700">Upgrade to Pro</p>
                 <p className="text-[10px] text-yellow-600">Unlock all voices, themes & features!</p>
-                <Button size="sm" className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">🚀 Get Pro</Button>
+                <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? '⏳ Upgrading...' : '🚀 Get Pro'}</Button>
               </div>
             )}
           </div>
@@ -871,7 +895,7 @@ export default function HomePage() {
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
                   <p className="text-xs text-gray-500">{user.isPro ? '👑 Pro Member' : 'Free Member'}</p>
-                  {!user.isPro && <button className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">⬆️ Upgrade to Pro</button>}
+                  {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? '⏳ Upgrading...' : '⬆️ Upgrade to Pro'}</button>}
                 </div>
               </CardContent></Card>
 
@@ -882,9 +906,10 @@ export default function HomePage() {
                 <div className="grid grid-cols-3 gap-2">
                   {ACHIEVEMENT_DEFS.map(a => {
                     const unlocked = achievements.find(ach => ach.type === a.type);
-                    return <div key={a.type} className={`p-2 rounded-xl text-center transition-all ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`}>
+                    return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={a.desc}>
                       <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
                       <p className="text-[10px] font-medium mt-1">{a.title}</p>
+                      <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
                     </div>;
                   })}
                 </div>

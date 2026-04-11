@@ -4,8 +4,7 @@ import { requireAuth } from '@/lib/auth'
 export async function GET() {
   try {
     const user = await requireAuth()
-
-    return NextResponse.json({ user })
+    return NextResponse.json(user)
   } catch (error) {
     if (error instanceof Response) {
       return error

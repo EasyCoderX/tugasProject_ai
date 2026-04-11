@@ -19,14 +19,14 @@ export async function PUT(request: Request) {
     }
 
     if (language !== undefined) {
-      const validLanguages = ['en', 'es', 'fr', 'de', 'zh', 'ja']
+      const validLanguages = ['en', 'id', 'zh']
       if (typeof language === 'string' && validLanguages.includes(language)) {
         updateData.language = language
       }
     }
 
     if (theme !== undefined) {
-      const validThemes = ['default', 'ocean', 'forest', 'sunset', 'space']
+      const validThemes = ['default', 'ocean', 'forest', 'sunset', 'night', 'candy']
       if (typeof theme === 'string' && validThemes.includes(theme)) {
         updateData.theme = theme
       }
@@ -55,10 +55,7 @@ export async function PUT(request: Request) {
       },
     })
 
-    return NextResponse.json({
-      message: 'Profile updated successfully',
-      user: updatedUser,
-    })
+    return NextResponse.json(updatedUser)
   } catch (error) {
     if (error instanceof Response) {
       return error
