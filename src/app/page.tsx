@@ -162,7 +162,10 @@ export default function HomePage() {
 
   // ---- Chat scroll ----
   useEffect(() => {
-    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+    if (chatScrollRef.current) {
+      const el = chatScrollRef.current.querySelector('[data-radix-scroll-area-viewport]') || chatScrollRef.current;
+      el.scrollTop = el.scrollHeight;
+    }
   }, [chatMessages]);
 
   // ---- Theme ----
@@ -244,15 +247,6 @@ export default function HomePage() {
     await startCamera(preferBack);
   }, [facingMode, startCamera, stopCamera]);
 
-  const captureImage = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const v = videoRef.current, c = canvasRef.current;
-    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-    c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
-    setCapturedImage(c.toDataURL('image/jpeg', 0.8));
-    setImageRotation(0);
-  }, []);
-
   // ==================== IMAGE OPERATIONS ====================
   const rotateImage = useCallback(() => {
     setImageRotation(prev => (prev + 90) % 360);
@@ -297,8 +291,12 @@ export default function HomePage() {
   }, [currentResult, voiceSettings]);
 
   // ==================== IDENTIFY ====================
+  const identifyingRef = useRef(false);
+
   const identifyImage = useCallback(async (imageData: string) => {
-    setCapturedImage(imageData); setIsIdentifying(true); setCurrentResult(null); setError(null);
+    if (identifyingRef.current) return;
+    identifyingRef.current = true;
+    setIsIdentifying(true); setCurrentResult(null); setError(null);
     try {
       const rotated = await getRotatedImage(imageData, imageRotation);
       const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: rotated }) });
@@ -308,16 +306,23 @@ export default function HomePage() {
       setCapturedImage(rotated); setImageRotation(0);
       setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
       if (user) {
-        fetch('/api/history', { method: 'GET' }).catch(() => {});
-        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }); } catch {}
+        fetchHistory();
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
       }
       doPlayVoice(result);
     } catch { setError('Could not identify. Try again!'); }
-    finally { setIsIdentifying(false); }
+    finally { setIsIdentifying(false); identifyingRef.current = false; }
   }, [imageRotation, getRotatedImage, user, doPlayVoice]);
 
-  const captureAndIdentify = useCallback(() => { captureImage(); }, [captureImage]);
-  useEffect(() => { if (capturedImage && !currentResult && !isIdentifying) identifyImage(capturedImage); }); // capturedImage triggers identify
+  const captureAndIdentify = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current, c = canvasRef.current;
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
+    const dataUrl = c.toDataURL('image/jpeg', 0.8);
+    setImageRotation(0);
+    await identifyImage(dataUrl);
+  }, [identifyImage]);
 
   // ==================== PLAY VOICE (for replay button) ====================
   const playVoice = useCallback((result?: IdentifyResult) => { doPlayVoice(result); }, [doPlayVoice]);
@@ -462,7 +467,11 @@ export default function HomePage() {
   const fetchHistory = async () => {
     try {
       const res = await fetch('/api/history');
-      if (res.ok) { const data = await res.json(); setHistory(data.map((h: any) => ({ ...h, timestamp: new Date(h.createdAt) }))); }
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (Array.isArray(data.history) ? data.history : []);
+        setHistory(items.map((h: any) => ({ ...h, timestamp: new Date(h.createdAt), imageData: h.imageData || '' })));
+      }
     } catch {}
   };
 
@@ -674,7 +683,7 @@ export default function HomePage() {
                   <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />Upload</Button>
                 </div>
               )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { stopCamera(); setCameraActive(false); identifyImage(r.result as string); }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { stopCamera(); setCameraActive(false); setImageRotation(0); identifyImage(r.result as string); }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
             </div>
 
             {/* Result Card */}
