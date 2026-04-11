@@ -469,7 +469,7 @@ export default function HomePage() {
   const fetchAchievements = async () => {
     try {
       const res = await fetch('/api/achievements');
-      if (res.ok) setAchievements(await res.json());
+      if (res.ok) { const data = await res.json(); setAchievements(Array.isArray(data) ? data : (Array.isArray(data.achievements) ? data.achievements : [])); }
     } catch {}
   };
 
