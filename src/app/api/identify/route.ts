@@ -51,7 +51,7 @@ Rules:
 - If the image is unclear, still try your best
 - Return ONLY the JSON, nothing else`;
 
-    const response = await zai.chat.completions.create({
+    const response = await zai.chat.completions.createVision({
       model: process.env.VISION_MODEL || 'glm-4v-plus',
       messages: [
         {
@@ -65,6 +65,7 @@ Rules:
           ],
         },
       ],
+      thinking: { type: 'disabled' },
     });
 
     const content = response.choices[0]?.message?.content;
