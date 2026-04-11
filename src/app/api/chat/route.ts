@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await req.json();
-    const { message, history } = body;
+    const { message, history, language } = body;
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -35,9 +35,18 @@ export async function POST(req: NextRequest) {
 
     const zai = await ZAI.create();
 
+    // Language-specific system prompt
+    const langInstructions: Record<string, string> = {
+      en: 'Respond in English.',
+      id: 'Respond in Bahasa Indonesia (Indonesian).',
+      zh: 'Respond in Simplified Chinese (简体中文).',
+    };
+    const langRule = langInstructions[language] || langInstructions.en;
+    const systemPrompt = `${SYSTEM_PROMPT}\n\n${langRule}`;
+
     // Build messages array with history support
     const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
     ];
 
     // Add conversation history if provided

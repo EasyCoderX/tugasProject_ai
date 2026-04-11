@@ -11,7 +11,7 @@ interface IdentifyResponse {
 
 export async function POST(req: NextRequest) {
   try {
-    const { image } = await req.json();
+    const { image, language } = await req.json();
 
     if (!image || typeof image !== 'string') {
       return NextResponse.json(
@@ -30,20 +30,30 @@ export async function POST(req: NextRequest) {
 
     const zai = await ZAI.create();
 
+    const langInstructions: Record<string, string> = {
+      en: 'Respond in English.',
+      id: 'Respond in Bahasa Indonesia (Indonesian). All text fields (name, description, funFact) must be in Indonesian.',
+      zh: 'Respond in Simplified Chinese (简体中文). All text fields (name, description, funFact) must be in Chinese.',
+    };
+    const langRule = langInstructions[language] || langInstructions.en;
+
     const prompt = `You are a fun, enthusiastic teacher helping young children (ages 3-8) learn about the world!
+
+${langRule}
 
 Look at the image and identify the main object. Respond with ONLY a valid JSON object (no markdown, no code blocks):
 
 {
-  "name": "simple name of the object (e.g., 'Apple', 'Teddy Bear', 'Red Car')",
+  "name": "simple name of the object in the specified language",
   "emoji": "one single emoji that best represents this object",
-  "description": "1-2 very short, simple sentences explaining what this object is. Use words a 4-year-old can understand. E.g. 'This is a red apple. Apples are yummy fruits that grow on trees!' Keep under 40 words.",
-  "funFact": "one amazing and easy-to-understand fact that will make a child go WOW. E.g. 'Did you know? Honey never spoils! Scientists found 3000 year old honey in Egyptian tombs and it was still good to eat!' Keep under 30 words.",
+  "description": "1-2 very short, simple sentences explaining what this object is in the specified language. Use words a 4-year-old can understand. Keep under 40 words.",
+  "funFact": "one amazing and easy-to-understand fact in the specified language that will make a child go WOW. Keep under 30 words.",
   "category": "one of: Animals, Food, Toys, Vehicles, Plants, Electronics, Furniture, Clothing, Tools, Nature, Sports, Household, School, Music, Art, People, Other"
 }
 
 Rules:
 - ALL text must be EXTREMELY simple — like talking to a 4-year-old
+- ALL text must be in the specified language
 - This will be read aloud by a voice, so write naturally
 - Description: under 40 words
 - Fun fact: under 30 words, must be genuinely fun/surprising

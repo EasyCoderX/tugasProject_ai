@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useTranslation } from '@/lib/i18n';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -168,8 +169,15 @@ export default function HomePage() {
     }
   }, [chatMessages]);
 
+  // ---- i18n ----
+  const { t } = useTranslation(language);
+
+  // ---- Achievement key mapping ----
+  const achTitleKey: Record<string, string> = { first_scan: 'achFirstScan', scan_5: 'achExplorer', scan_10: 'achScientist', scan_20: 'achProfessor', quiz_perfect: 'achPerfectScore', puzzle_complete: 'achPuzzleMaster', spell_master: 'achSpellingBee', chat_first: 'achChattyKid', feedback_given: 'achHelper' };
+  const achDescKey: Record<string, string> = { first_scan: 'achFirstScanDesc', scan_5: 'achExplorerDesc', scan_10: 'achScientistDesc', scan_20: 'achProfessorDesc', quiz_perfect: 'achPerfectScoreDesc', puzzle_complete: 'achPuzzleMasterDesc', spell_master: 'achSpellingBeeDesc', chat_first: 'achChattyKidDesc', feedback_given: 'achHelperDesc' };
+
   // ---- Theme ----
-  const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
+  const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
 
   // ==================== AUTH ====================
   const handleAuth = async (mode: 'login' | 'register') => {
@@ -181,12 +189,12 @@ export default function HomePage() {
         body: JSON.stringify(authForm),
       });
       const data = await res.json();
-      if (!res.ok) { setAuthError(data.error || 'Auth failed'); return; }
+      if (!res.ok) { setAuthError(data.error || t('authFailed')); return; }
       setUser(data.user || data);
       setShowAuth(null);
       setAuthForm({ username: '', email: '', password: '' });
       if (mode === 'register') fetchHistory();
-    } catch { setAuthError('Network error'); }
+    } catch { setAuthError(t('networkError')); }
   };
 
   const handleLogout = async () => {
@@ -230,7 +238,7 @@ export default function HomePage() {
       setCameraActive(true); setCameraLoading(false);
     } catch {
       setCameraLoading(false); setCameraSupported(false);
-      setError('Camera not available. Upload an image instead!');
+      setError(t('cameraNotAvailable'));
     }
   }, [getCameraStream]);
 
@@ -278,7 +286,7 @@ export default function HomePage() {
     if (!target) return;
     setIsSpeaking(true);
     try {
-      const text = `${target.name}. ${target.description}. Fun fact: ${target.funFact}`;
+      const text = `${target.name}. ${target.description}. ${t('ttsFunFact', { fact: target.funFact })}`;
       const res = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: voiceSettings.voice, speed: voiceSettings.speed }) });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
@@ -299,7 +307,7 @@ export default function HomePage() {
     setIsIdentifying(true); setCurrentResult(null); setError(null);
     try {
       const rotated = await getRotatedImage(imageData, imageRotation);
-      const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: rotated }) });
+      const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: rotated, language }) });
       if (!res.ok) throw new Error();
       const result: IdentifyResult = await res.json();
       setCurrentResult(result);
@@ -313,7 +321,7 @@ export default function HomePage() {
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
       }
       doPlayVoice(result);
-    } catch { setError('Could not identify. Try again!'); }
+    } catch { setError(t('couldNotIdentify')); }
     finally { setIsIdentifying(false); identifyingRef.current = false; }
   }, [imageRotation, getRotatedImage, user, doPlayVoice]);
 
@@ -366,7 +374,7 @@ export default function HomePage() {
     const shuffled = wrongs.sort(() => Math.random() - 0.5).slice(0, 2);
     const options = [currentResult.name, ...shuffled].sort(() => Math.random() - 0.5);
     setQuizOptions(options);
-    setQuizQuestion(`What is in this picture?`);
+    setQuizQuestion(t('quizQuestion'));
     setQuizCorrect(0); setQuizScore({ score: 0, total: 1 });
   }, [currentResult]);
 
@@ -391,11 +399,11 @@ export default function HomePage() {
   const checkSpell = () => {
     if (spellInput.trim().toLowerCase() === spellWord.toLowerCase()) {
       setSpellResult('correct');
-      speakText(`Great job! You spelled ${spellWord} correctly!`);
+      speakText(t('ttsSpellCorrect', { word: spellWord }));
       fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'spell_master', title: 'Spelling Bee', emoji: '📝' }) }).catch(() => {});
     } else {
       setSpellResult('wrong');
-      speakText(`Not quite! The word is ${spellWord}. Try again!`);
+      speakText(t('ttsSpellWrong', { word: spellWord }));
     }
   };
 
@@ -433,9 +441,9 @@ export default function HomePage() {
       const correct = newSlots.every((s, i) => s === puzzlePieces[i]);
       if (correct) {
         fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
-        speakText('Amazing! You completed the puzzle!');
+        speakText(t('ttsPuzzleComplete'));
       } else {
-        speakText('Almost! Try rearranging the pieces.');
+        speakText(t('ttsPuzzleAlmost'));
       }
     }
   };
@@ -450,10 +458,10 @@ export default function HomePage() {
       fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
     }
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, history: chatMessages.slice(-6) }) });
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, history: chatMessages.slice(-6), language }) });
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: 'Oops! Something went wrong. Try again! 🙈' }]); }
+    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: t('chatError') }]); }
     setChatLoading(false);
   };
 
@@ -522,41 +530,41 @@ export default function HomePage() {
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br ${currentTheme.bg} p-4`}>
         <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-7xl mb-4">🔍</motion.div>
-        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-orange-500 to-green-500 bg-clip-text text-transparent">What&apos;s This?</h1>
-        <p className="text-gray-500 mb-8">AI-Powered Object Learning for Kids</p>
+        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-orange-500 to-green-500 bg-clip-text text-transparent">{t('appTitle')}</h1>
+        <p className="text-gray-500 mb-8">{t('appSubtitle')}</p>
         <AnimatePresence mode="wait">
           {showAuth ? (
             <motion.div key={showAuth} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-sm">
-              <h2 className="text-2xl font-bold mb-4 text-center">{showAuth === 'login' ? 'Welcome Back!' : 'Join the Fun! 🎉'}</h2>
+              <h2 className="text-2xl font-bold mb-4 text-center">{showAuth === 'login' ? t('welcomeBack') : t('joinTheFun')}</h2>
               {authError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm mb-4 text-center">{authError}</div>}
               {showAuth === 'register' && (
-                <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">Username</label>
+                <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('username')}</label>
                   <Input placeholder="CoolKid123" value={authForm.username} onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))} className="rounded-xl" /></div>
               )}
-              <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">Email</label>
+              <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('email')}</label>
                 <Input type="email" placeholder="kid@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} className="rounded-xl" /></div>
-              <div className="mb-4"><label className="text-sm font-medium text-gray-600 mb-1 block">Password</label>
+              <div className="mb-4"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('password')}</label>
                 <Input type="password" placeholder="••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} className="rounded-xl" /></div>
               <Button onClick={() => handleAuth(showAuth)} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-xl py-5 text-lg">
-                {showAuth === 'login' ? 'Login' : 'Create Account'}
+                {showAuth === 'login' ? t('login') : t('createAccount')}
               </Button>
               <p className="text-center text-sm text-gray-500 mt-3">
-                {showAuth === 'login' ? "Don't have an account? " : "Already have an account? "}
-                <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="text-purple-600 font-semibold">{showAuth === 'login' ? 'Register' : 'Login'}</button>
+                {showAuth === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
+                <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="text-purple-600 font-semibold">{showAuth === 'login' ? t('register') : t('login')}</button>
               </p>
-              <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-2">Cancel</button>
+              <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-2">{t('cancel')}</button>
             </motion.div>
           ) : (
             <motion.div key="buttons" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full max-w-sm">
               <Button onClick={() => setShowAuth('register')} size="lg" className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 text-white font-bold text-lg rounded-2xl py-6 shadow-xl">
-                🎉 Create Account
+                🎉 {t('createAccount')}
               </Button>
               <Button onClick={() => setShowAuth('login')} size="lg" variant="outline" className="font-bold text-lg rounded-2xl py-6">
-                🔑 Login
+                🔑 {t('login')}
               </Button>
               <Button onClick={() => { setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' }); }} variant="ghost" className="text-gray-500">
-                Continue as Guest →
+                {t('continueAsGuest')}
               </Button>
             </motion.div>
           )}
@@ -578,8 +586,8 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
             <div>
-              <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">What&apos;s This?</h1>
-              <p className="text-[10px] sm:text-xs text-white/80">Hi, {user.displayName || user.username}! 👋</p>
+              <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
+              <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -597,21 +605,21 @@ export default function HomePage() {
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>⚙️ Settings</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-semibold mb-2 block">🎨 Theme</label>
+              <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
               <div className="grid grid-cols-3 gap-2">
-                {THEMES.map(t => (
-                  <button key={t.id} onClick={() => { setTheme(t.id); updateProfile({ theme: t.id }); }}
-                    className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === t.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    {t.emoji} {t.name}
+                {THEMES.map(tm => (
+                  <button key={tm.id} onClick={() => { setTheme(tm.id); updateProfile({ theme: tm.id }); }}
+                    className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold mb-2 block">🌐 Language</label>
+              <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
               <div className="flex gap-2">
                 {LANGUAGES.map(l => (
                   <button key={l.id} onClick={() => { setLanguage(l.id); updateProfile({ language: l.id }); }}
@@ -622,7 +630,7 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold mb-2 block">🎙️ Voice ({voiceSettings.voice})</label>
+              <label className="text-sm font-semibold mb-2 block">🎙️ {t('voice')} ({voiceSettings.voice})</label>
               <div className="grid grid-cols-3 gap-1">
                 {API_VOICES.map(v => (
                   <button key={v.id} onClick={() => setVoiceSettings(p => ({ ...p, voice: v.id }))}
@@ -633,7 +641,7 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold mb-1 block">⚡ Speed: {voiceSettings.speed.toFixed(2)}x</label>
+              <label className="text-sm font-semibold mb-1 block">⚡ {t('speed')}: {voiceSettings.speed.toFixed(2)}x</label>
               <input type="range" min="0.5" max="1.5" step="0.05" value={voiceSettings.speed}
                 onChange={e => setVoiceSettings(p => ({ ...p, speed: parseFloat(e.target.value) }))}
                 className="w-full accent-purple-500" />
@@ -641,9 +649,9 @@ export default function HomePage() {
             {!user.isPro && (
               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
                 <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
-                <p className="text-xs font-semibold text-yellow-700">Upgrade to Pro</p>
-                <p className="text-[10px] text-yellow-600">Unlock all voices, themes & features!</p>
-                <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? '⏳ Upgrading...' : '🚀 Get Pro'}</Button>
+                <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
+                <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
+                <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
               </div>
             )}
           </div>
@@ -654,11 +662,11 @@ export default function HomePage() {
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-3 flex flex-col gap-3 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-white/80 shadow-sm p-1 mb-2">
-            <TabsTrigger value="home" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-yellow-400 data-[state=active]:text-white"><Home className="h-3.5 w-3.5" /><span className="hidden sm:inline">Home</span></TabsTrigger>
-            <TabsTrigger value="learn" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-400 data-[state=active]:text-white"><BookOpen className="h-3.5 w-3.5" /><span className="hidden sm:inline">Learn</span></TabsTrigger>
-            <TabsTrigger value="games" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"><Gamepad2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Games</span></TabsTrigger>
-            <TabsTrigger value="chat" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">Chat</span></TabsTrigger>
-            <TabsTrigger value="profile" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-red-400 data-[state=active]:text-white"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Me</span></TabsTrigger>
+            <TabsTrigger value="home" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-yellow-400 data-[state=active]:text-white"><Home className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('home')}</span></TabsTrigger>
+            <TabsTrigger value="learn" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-400 data-[state=active]:text-white"><BookOpen className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('learn')}</span></TabsTrigger>
+            <TabsTrigger value="games" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"><Gamepad2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('games')}</span></TabsTrigger>
+            <TabsTrigger value="chat" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('chat')}</span></TabsTrigger>
+            <TabsTrigger value="profile" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-red-400 data-[state=active]:text-white"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('me')}</span></TabsTrigger>
           </TabsList>
 
           {/* ============ HOME TAB ============ */}
@@ -677,12 +685,12 @@ export default function HomePage() {
               {showPlaceholder && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
                   <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
-                  <p className="text-sm font-bold">Ready to Explore?</p>
-                  <p className="text-xs text-gray-400">{cameraSupported ? 'Use camera or upload' : 'Upload an image'}</p>
+                  <p className="text-sm font-bold">{t('readyToExplore')}</p>
+                  <p className="text-xs text-gray-400">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
                 </div>
               )}
               {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
-              {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">Identifying...</p></div>}
+              {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
               {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
               <canvas ref={canvasRef} className="hidden" />
             </div>
@@ -703,8 +711,8 @@ export default function HomePage() {
                 </>
               ) : (
                 <div className="flex items-center gap-3">
-                  {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />Camera</Button>}
-                  <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />Upload</Button>
+                  {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
+                  <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
                 </div>
               )}
               <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { stopCamera(); setCameraActive(false); setImageRotation(0); identifyImage(r.result as string); }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
@@ -727,13 +735,13 @@ export default function HomePage() {
                           </div>
                           <p className="text-sm text-gray-600">{currentResult.description}</p>
                           <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
-                            <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">FUN FACT</span></div>
+                            <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
                             <p className="text-xs text-yellow-800">{currentResult.funFact}</p>
                           </div>
                           <div className="flex gap-2 mt-3">
-                            <button onClick={() => { setActiveTab('learn'); startSpell(); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">📝 Spell It</button>
-                            <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 Quiz</button>
-                            <button onClick={() => { setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 Puzzle</button>
+                            <button onClick={() => { setActiveTab('learn'); startSpell(); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">📝 {t('spellIt')}</button>
+                            <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
+                            <button onClick={() => { setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
                           </div>
                         </div>
                       </div>
@@ -746,37 +754,37 @@ export default function HomePage() {
             {/* Speaking indicator */}
             <AnimatePresence>{isSpeaking && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-1.5">
               {[0, 1, 2].map(i => <motion.div key={i} animate={{ scaleY: [1, 1.8, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} className="w-1 h-3 bg-purple-400 rounded-full" />)}
-              <span className="text-xs text-purple-600 ml-1">Speaking...</span>
+              <span className="text-xs text-purple-600 ml-1">{t('speaking')}</span>
             </motion.div>}</AnimatePresence>
           </TabsContent>
 
           {/* ============ LEARN TAB ============ */}
           <TabsContent value="learn" className="flex-1 min-h-0 overflow-y-auto pb-2">
             <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> Learn & Practice</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
 
               {/* Spell the Word */}
               {currentResult ? (
                 <Card className="border-2 border-blue-200 bg-white/90">
                   <CardContent className="p-4">
-                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">📝 Spell the Word <span className="text-2xl">{currentResult.emoji}</span></h4>
-                    <p className="text-xs text-gray-500 mb-3">Can you spell &quot;{spellWord}&quot;?</p>
-                    {spellResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">✅ Correct! Amazing!</div>}
-                    {spellResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">❌ Not quite! The word is &quot;{spellWord}&quot;</div>}
+                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">📝 {t('spellTheWord')} <span className="text-2xl">{currentResult.emoji}</span></h4>
+                    <p className="text-xs text-gray-500 mb-3">{t('spellInstruction')}</p>
+                    {spellResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('correctAmazing')}</div>}
+                    {spellResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('wrongNotQuite', { word: spellWord })}</div>}
                     <div className="flex gap-2 mb-2">
-                      <Input placeholder="Type here..." value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
+                      <Input placeholder={t('typeHere')} value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
                         onKeyDown={e => e.key === 'Enter' && spellInput && checkSpell()} className="rounded-xl flex-1" />
-                      <Button onClick={checkSpell} disabled={!spellInput} className="bg-blue-500 text-white rounded-xl">Check</Button>
+                      <Button onClick={checkSpell} disabled={!spellInput} className="bg-blue-500 text-white rounded-xl">{t('checkSpelling')}</Button>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? spellWord.split('').join(' ') : 'Show Hint'}</button>
-                      <button onClick={() => speakText(`Spell: ${spellWord}`)} className="text-xs text-purple-600 hover:underline">🔊 Listen</button>
+                      <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? spellWord.split('').join(' ') : t('showHint')}</button>
+                      <button onClick={() => speakText(`Spell: ${spellWord}`)} className="text-xs text-purple-600 hover:underline">🔊 {t('listen')}</button>
                     </div>
                   </CardContent>
                 </Card>
               ) : (
                 <Card className="border-2 border-gray-200 bg-white/60"><CardContent className="p-4 text-center text-gray-400 text-sm">
-                  📸 Identify an object first to practice spelling!
+                  {t('identifyFirstSpell')}
                 </CardContent></Card>
               )}
             </div>
