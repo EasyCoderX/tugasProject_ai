@@ -2,1067 +2,951 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star, Settings, Upload } from 'lucide-react';
+import {
+  Camera, Volume2, VolumeX, RotateCcw, Sparkles, SwitchCamera, ImagePlus,
+  Upload, Settings, Star, BookOpen, MessageCircle, Home, Gamepad2,
+  User, Trophy, Send, RotateCw, Puzzle, HelpCircle, Crown, LogOut,
+  Languages, Palette, Trash2, ChevronRight, Check, X, Mic, Eye, Award
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-// API TTS voice options
+// ==================== TYPES ====================
+interface UserInfo {
+  id: string; username: string; email: string; displayName: string | null;
+  avatar: string | null; isPro: boolean; theme: string; language: string;
+}
+interface IdentifyResult {
+  name: string; emoji: string; description: string; funFact: string; category: string; warning?: string;
+}
+interface HistoryItem extends IdentifyResult {
+  id: string; timestamp: Date; imageData: string;
+}
+interface Achievement {
+  id: string; type: string; title: string; emoji: string; unlockedAt: string;
+}
+interface ChatMessage {
+  role: 'user' | 'assistant'; content: string;
+}
+interface VoiceSettings {
+  voice: string; speed: number;
+}
+
 const API_VOICES = [
-  { id: 'chuichui', label: 'Chuichui (Playful)', emoji: '🎈' },
-  { id: 'tongtong', label: 'Tongtong (Warm)', emoji: '🌸' },
-  { id: 'xiaochen', label: 'Xiaochen (Calm)', emoji: '🍃' },
-  { id: 'jam', label: 'Jam (British)', emoji: '🎩' },
-  { id: 'kazi', label: 'Kazi (Clear)', emoji: '🎤' },
-  { id: 'douji', label: 'Douji (Natural)', emoji: '🎵' },
-  { id: 'luodo', label: 'Luodo (Expressive)', emoji: '🎭' },
+  { id: 'chuichui', label: 'Chuichui', emoji: '🎈' },
+  { id: 'tongtong', label: 'Tongtong', emoji: '🌸' },
+  { id: 'jam', label: 'Jam', emoji: '🎩' },
+  { id: 'kazi', label: 'Kazi', emoji: '🎤' },
+  { id: 'xiaochen', label: 'Xiaochen', emoji: '🍃' },
 ];
 
-interface IdentifyResult {
-  name: string;
-  emoji: string;
-  description: string;
-  funFact: string;
-  category: string;
-}
+const THEMES = [
+  { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
+  { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
+  { id: 'forest', name: 'Forest', emoji: '🌲', bg: 'from-green-50 via-emerald-50 to-lime-50', header: 'from-green-500 via-emerald-500 to-lime-500' },
+  { id: 'sunset', name: 'Sunset', emoji: '🌅', bg: 'from-orange-50 via-rose-50 to-pink-50', header: 'from-orange-500 via-rose-500 to-pink-500' },
+  { id: 'night', name: 'Night', emoji: '🌙', bg: 'from-slate-50 via-indigo-50 to-purple-50', header: 'from-slate-700 via-indigo-700 to-purple-700' },
+  { id: 'candy', name: 'Candy', emoji: '🍬', bg: 'from-pink-50 via-fuchsia-50 to-violet-50', header: 'from-pink-400 via-fuchsia-400 to-violet-400' },
+];
 
-interface VoiceSettings {
-  voice: string;
-  speed: number;
-}
+const LANGUAGES = [
+  { id: 'en', name: 'English', emoji: '🇬🇧' },
+  { id: 'id', name: 'Indonesia', emoji: '🇮🇩' },
+  { id: 'zh', name: '中文', emoji: '🇨🇳' },
+];
 
-interface HistoryItem extends IdentifyResult {
-  id: string;
-  timestamp: Date;
-  imageData: string;
-}
+const ACHIEVEMENT_DEFS = [
+  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍' },
+  { type: 'scan_5', title: 'Explorer', emoji: '🧭' },
+  { type: 'scan_10', title: 'Scientist', emoji: '🔬' },
+  { type: 'scan_20', title: 'Professor', emoji: '🎓' },
+  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' },
+  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' },
+  { type: 'spell_master', title: 'Spelling Bee', emoji: '📝' },
+  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬' },
+  { type: 'feedback_given', title: 'Helper', emoji: '⭐' },
+];
 
-export default function Home() {
+// ==================== MAIN APP ====================
+export default function HomePage() {
+  // Auth state
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState<'login' | 'register' | null>(null);
+  const [authForm, setAuthForm] = useState({ username: '', email: '', password: '' });
+  const [authError, setAuthError] = useState('');
+
+  // App state
+  const [activeTab, setActiveTab] = useState('home');
+  const [theme, setTheme] = useState('default');
+  const [language, setLanguage] = useState('en');
+
+  // Camera state
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraSupported, setCameraSupported] = useState(true);
-  const [isIdentifying, setIsIdentifying] = useState(false);
-  const [currentResult, setCurrentResult] = useState<IdentifyResult | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
-    voice: 'chuichui',
-    speed: 0.85,
-  });
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [imageRotation, setImageRotation] = useState(0);
+
+  // Identify state
+  const [isIdentifying, setIsIdentifying] = useState(false);
+  const [currentResult, setCurrentResult] = useState<IdentifyResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // History state
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Voice state
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ voice: 'chuichui', speed: 0.85 });
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
-  // Check if camera is available on mount
+  // Learn state
+  const [spellWord, setSpellWord] = useState('');
+  const [spellInput, setSpellInput] = useState('');
+  const [spellResult, setSpellResult] = useState<'correct' | 'wrong' | null>(null);
+  const [showSpellHint, setShowSpellHint] = useState(false);
+
+  // Quiz state
+  const [quizQuestion, setQuizQuestion] = useState('');
+  const [quizOptions, setQuizOptions] = useState<string[]>([]);
+  const [quizCorrect, setQuizCorrect] = useState(0);
+  const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
+  const [quizActive, setQuizActive] = useState(false);
+  const [quizScore, setQuizScore] = useState({ score: 0, total: 0 });
+  const [showQuizResult, setShowQuizResult] = useState(false);
+
+  // Puzzle state
+  const [puzzleActive, setPuzzleActive] = useState(false);
+  const [puzzlePieces, setPuzzlePieces] = useState<string[]>([]);
+  const [puzzleSlots, setPuzzleSlots] = useState<(string | null)[]>([]);
+  const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Profile state
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // ---- Load user on mount ----
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setCameraSupported(false);
     }
+    fetch('/api/auth/me').then(r => r.json()).then(data => {
+      if (data.id) { setUser(data); setTheme(data.theme || 'default'); setLanguage(data.language || 'en'); }
+      setAuthLoading(false);
+    }).catch(() => setAuthLoading(false));
   }, []);
 
-  // Cleanup on unmount
+  // ---- Chat scroll ----
   useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [chatMessages]);
 
-  // Helper: find the correct camera device by enumerating hardware devices
+  // ---- Theme ----
+  const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
+
+  // ==================== AUTH ====================
+  const handleAuth = async (mode: 'login' | 'register') => {
+    setAuthError('');
+    try {
+      const res = await fetch(`/api/auth/${mode}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAuthError(data.error || 'Auth failed'); return; }
+      setUser(data.user || data);
+      setShowAuth(null);
+      setAuthForm({ username: '', email: '', password: '' });
+      if (mode === 'register') fetchHistory();
+    } catch { setAuthError('Network error'); }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null); setHistory([]); setAchievements([]);
+  };
+
+  // ==================== CAMERA ====================
   const getCameraStream = useCallback(async (preferBack: boolean) => {
     try {
-      const tempStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      tempStream.getTracks().forEach((t) => t.stop());
-
+      const temp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      temp.getTracks().forEach(t => t.stop());
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter((d) => d.kind === 'videoinput');
-
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
       if (videoDevices.length > 1) {
-        const backKeywords = ['back', 'rear', 'environment', 'arriere', 'posterior', 'trasera', '后面'];
-        const frontKeywords = ['front', 'user', 'face', 'avant', 'delantera', '前面'];
-        let targetDevice: MediaDeviceInfo | undefined;
-
-        if (preferBack) {
-          targetDevice = videoDevices.find((d) =>
-            backKeywords.some((k) => d.label.toLowerCase().includes(k))
-          );
-          if (!targetDevice) {
-            targetDevice = videoDevices[videoDevices.length - 1];
-          }
-        } else {
-          targetDevice = videoDevices.find((d) =>
-            frontKeywords.some((k) => d.label.toLowerCase().includes(k))
-          );
-          if (!targetDevice) {
-            targetDevice = videoDevices[0];
-          }
-        }
-
-        if (targetDevice?.deviceId) {
-          return await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: targetDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        }
+        const back = ['back', 'rear', 'environment'];
+        let target = preferBack
+          ? videoDevices.find(d => back.some(k => d.label.toLowerCase().includes(k))) || videoDevices[videoDevices.length - 1]
+          : videoDevices[0];
+        if (target?.deviceId) return await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: target.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       } else if (videoDevices.length === 1) {
-        return await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: videoDevices[0].deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
+        return await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: videoDevices[0].deviceId } }, audio: false });
       }
-    } catch {
-      // fall through
-    }
-
+    } catch {}
     const facing = preferBack ? 'environment' : 'user';
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-    } catch {
-      return await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-    }
+    try { return await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false }); }
+    catch { return await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
   }, []);
 
-  // Start camera
-  const startCamera = useCallback(async (preferBack: boolean = true) => {
+  const startCamera = useCallback(async (preferBack = true) => {
     try {
-      setError(null);
-      setCameraLoading(true);
-
+      setError(null); setCameraLoading(true);
       const stream = await getCameraStream(preferBack);
       streamRef.current = stream;
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          const video = videoRef.current!;
-          const onLoaded = () => { cleanup(); resolve(); };
-          const onError = () => { cleanup(); resolve(); };
-          const cleanup = () => {
-            video.removeEventListener('loadeddata', onLoaded);
-            video.removeEventListener('error', onError);
-          };
-          video.addEventListener('loadeddata', onLoaded);
-          video.addEventListener('error', onError);
-          setTimeout(() => { cleanup(); resolve(); }, 3000);
-        });
+        await new Promise<void>(r => { const v = videoRef.current!; v.onloadeddata = () => r(); setTimeout(r, 3000); });
         await videoRef.current.play();
       }
-
       setFacingMode(preferBack ? 'environment' : 'user');
-      setCameraActive(true);
-      setCameraLoading(false);
-    } catch (err) {
-      setCameraLoading(false);
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('Camera access denied. Please allow camera access!');
-        setCameraSupported(false);
-      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
-        setError('No camera found on this device.');
-        setCameraSupported(false);
-      } else {
-        setError('Could not start the camera. Try uploading an image instead!');
-        setCameraSupported(false);
-      }
+      setCameraActive(true); setCameraLoading(false);
+    } catch {
+      setCameraLoading(false); setCameraSupported(false);
+      setError('Camera not available. Upload an image instead!');
     }
   }, [getCameraStream]);
 
-  // Stop camera
   const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
   }, []);
 
-  // Reset to camera view
-  const resetView = useCallback(() => {
-    setCapturedImage(null);
-    setCurrentResult(null);
-    setError(null);
-    setIsSpeaking(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+  const switchCamera = useCallback(async () => {
+    stopCamera();
+    const preferBack = facingMode !== 'environment';
+    await startCamera(preferBack);
+  }, [facingMode, startCamera, stopCamera]);
+
+  const captureImage = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current, c = canvasRef.current;
+    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+    c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
+    setCapturedImage(c.toDataURL('image/jpeg', 0.8));
+    setImageRotation(0);
   }, []);
 
-  // Build a fun, kid-friendly speech script from the result
-  const buildKidScript = useCallback((result: IdentifyResult) => {
-    const greetings = [
-      `Ooh! Look at that! It's a ${result.name}!`,
-      `Wow! I found a ${result.name}! How cool is that?`,
-      `Ta-da! That's a ${result.name}!`,
-      `Yay! It's a ${result.name}!`,
-      `Great job! This is a ${result.name}!`,
-    ];
-    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-    return `${greeting} ${result.description} And here's a fun fact! ${result.funFact} Keep exploring!`;
+  // ==================== IMAGE OPERATIONS ====================
+  const rotateImage = useCallback(() => {
+    setImageRotation(prev => (prev + 90) % 360);
   }, []);
 
-  // Play voice using the API TTS
-  const playVoice = useCallback(async (result?: IdentifyResult) => {
+  const getRotatedImage = useCallback(async (imgSrc: string, rotation: number): Promise<string> => {
+    if (rotation === 0) return imgSrc;
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const isRotated = rotation === 90 || rotation === 270;
+        c.width = isRotated ? img.height : img.width;
+        c.height = isRotated ? img.width : img.height;
+        const ctx = c.getContext('2d')!;
+        ctx.translate(c.width / 2, c.height / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        resolve(c.toDataURL('image/jpeg', 0.9));
+      };
+      img.src = imgSrc;
+    });
+  }, []);
+
+  // ==================== TTS (declared here so identifyImage can use it) ====================
+  const doPlayVoice = useCallback(async (result?: IdentifyResult) => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     const target = result || currentResult;
     if (!target) return;
-
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-
     setIsSpeaking(true);
-
     try {
-      const text = buildKidScript(target);
-
-      const response = await fetch('/api/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voice: voiceSettings.voice,
-          speed: voiceSettings.speed,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate voice');
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-
+      const text = `${target.name}. ${target.description}. Fun fact: ${target.funFact}`;
+      const res = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: voiceSettings.voice, speed: voiceSettings.speed }) });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url); audioRef.current = audio;
+      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
       await audio.play();
-    } catch {
-      setIsSpeaking(false);
-    }
-  }, [currentResult, voiceSettings, buildKidScript]);
+    } catch { setIsSpeaking(false); }
+  }, [currentResult, voiceSettings]);
 
-  // Identify image from base64 data
-  const identifyFromImage = useCallback(async (imageData: string) => {
-    setCapturedImage(imageData);
-    setIsIdentifying(true);
-    setCurrentResult(null);
-    setError(null);
-
+  // ==================== IDENTIFY ====================
+  const identifyImage = useCallback(async (imageData: string) => {
+    setCapturedImage(imageData); setIsIdentifying(true); setCurrentResult(null); setError(null);
     try {
-      const response = await fetch('/api/identify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageData }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to identify object');
-      }
-
-      const result: IdentifyResult = await response.json();
+      const rotated = await getRotatedImage(imageData, imageRotation);
+      const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: rotated }) });
+      if (!res.ok) throw new Error();
+      const result: IdentifyResult = await res.json();
       setCurrentResult(result);
-
-      setHistory((prev) => [
-        { ...result, id: Date.now().toString(), timestamp: new Date(), imageData },
-        ...prev,
-      ]);
-
-      playVoice(result);
-    } catch {
-      setError('Could not identify the object. Please try again!');
-    } finally {
-      setIsIdentifying(false);
-    }
-  }, [playVoice]);
-
-  // Capture image from camera and identify
-  const captureAndIdentify = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-    await identifyFromImage(imageData);
-  }, [identifyFromImage]);
-
-  // Switch camera (front/back)
-  const switchCamera = useCallback(async () => {
-    const preferBack = facingMode !== 'environment';
-    stopCamera();
-    resetView();
-    setCameraLoading(true);
-    try {
-      const stream = await getCameraStream(preferBack);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          const video = videoRef.current!;
-          const onLoaded = () => { video.removeEventListener('loadeddata', onLoaded); resolve(); };
-          video.addEventListener('loadeddata', onLoaded);
-          setTimeout(resolve, 3000);
-        });
-        await videoRef.current.play();
+      setCapturedImage(rotated); setImageRotation(0);
+      setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
+      if (user) {
+        fetch('/api/history', { method: 'GET' }).catch(() => {});
+        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }); } catch {}
       }
-      setFacingMode(preferBack ? 'environment' : 'user');
-      setCameraActive(true);
-      setCameraLoading(false);
-    } catch {
-      setCameraLoading(false);
-      setError('Could not switch camera.');
+      doPlayVoice(result);
+    } catch { setError('Could not identify. Try again!'); }
+    finally { setIsIdentifying(false); }
+  }, [imageRotation, getRotatedImage, user, doPlayVoice]);
+
+  const captureAndIdentify = useCallback(() => { captureImage(); }, [captureImage]);
+  useEffect(() => { if (capturedImage && !currentResult && !isIdentifying) identifyImage(capturedImage); }); // capturedImage triggers identify
+
+  // ==================== PLAY VOICE (for replay button) ====================
+  const playVoice = useCallback((result?: IdentifyResult) => { doPlayVoice(result); }, [doPlayVoice]);
+
+  const stopSpeaking = useCallback(() => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } setIsSpeaking(false); }, []);
+
+  const speakText = useCallback(async (text: string) => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setIsSpeaking(true);
+    try {
+      const res = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: voiceSettings.voice, speed: voiceSettings.speed }) });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url); audioRef.current = audio;
+      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+      await audio.play();
+    } catch { setIsSpeaking(false); }
+  }, [voiceSettings]);
+
+  // ==================== RESET ====================
+  const resetView = useCallback(() => {
+    setCapturedImage(null); setCurrentResult(null); setError(null); setImageRotation(0);
+    stopSpeaking();
+  }, [stopSpeaking]);
+
+  const resetHistory = async () => {
+    await fetch('/api/history', { method: 'DELETE' });
+    setHistory([]);
+  };
+
+  // ==================== QUIZ ====================
+  const startQuiz = useCallback(() => {
+    if (!currentResult) return;
+    setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false);
+    const wrongs = ['Rock', 'Cloud', 'Shoe', 'Cup', 'Key', 'Hat', 'Ball', 'Tree'];
+    const shuffled = wrongs.sort(() => Math.random() - 0.5).slice(0, 2);
+    const options = [currentResult.name, ...shuffled].sort(() => Math.random() - 0.5);
+    setQuizOptions(options);
+    setQuizQuestion(`What is in this picture?`);
+    setQuizCorrect(0); setQuizScore({ score: 0, total: 1 });
+  }, [currentResult]);
+
+  const answerQuiz = async (answer: string) => {
+    if (!currentResult) return;
+    const correct = answer === currentResult.name;
+    setQuizAnswer(answer);
+    setQuizScore({ score: correct ? 1 : 0, total: 1 });
+    if (correct) {
+      try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
+      try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
     }
-  }, [facingMode, resetView, getCameraStream, stopCamera]);
+    setTimeout(() => setShowQuizResult(true), 500);
+  };
 
-  // Upload image from gallery
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ==================== SPELL ====================
+  const startSpell = useCallback(() => {
+    if (!currentResult) return;
+    setSpellWord(currentResult.name); setSpellInput(''); setSpellResult(null); setShowSpellHint(false);
+  }, [currentResult]);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      stopCamera();
-      setCameraActive(false);
-      identifyFromImage(base64);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  }, [identifyFromImage, stopCamera]);
-
-  // Toggle camera
-  const toggleCamera = useCallback(() => {
-    if (cameraActive) {
-      stopCamera();
-      resetView();
+  const checkSpell = () => {
+    if (spellInput.trim().toLowerCase() === spellWord.toLowerCase()) {
+      setSpellResult('correct');
+      speakText(`Great job! You spelled ${spellWord} correctly!`);
+      fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'spell_master', title: 'Spelling Bee', emoji: '📝' }) }).catch(() => {});
     } else {
-      resetView();
-      startCamera();
+      setSpellResult('wrong');
+      speakText(`Not quite! The word is ${spellWord}. Try again!`);
     }
-  }, [cameraActive, stopCamera, startCamera, resetView]);
+  };
 
-  // Determine what to show in the viewport area
+  // ==================== PUZZLE ====================
+  const startPuzzle = useCallback(async () => {
+    if (!capturedImage) return;
+    const img = new Image();
+    img.onload = () => {
+      const size = 2;
+      const pieces: string[] = [];
+      const pw = Math.floor(img.width / size), ph = Math.floor(img.height / size);
+      for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+        const cv = document.createElement('canvas');
+        cv.width = pw; cv.height = ph;
+        cv.getContext('2d')!.drawImage(img, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
+        pieces.push(cv.toDataURL('image/jpeg', 0.8));
+      }
+      const shuffled = [...pieces].sort(() => Math.random() - 0.5);
+      setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null);
+      setPuzzleActive(true);
+    };
+    img.src = capturedImage;
+  }, [capturedImage]);
+
+  const placePiece = (idx: number) => {
+    if (selectedPiece === null) return;
+    const newSlots = [...puzzleSlots];
+    // Remove from old slot if exists
+    const oldIdx = newSlots.indexOf(puzzlePieces[selectedPiece]);
+    if (oldIdx >= 0) newSlots[oldIdx] = null;
+    newSlots[idx] = puzzlePieces[selectedPiece];
+    setPuzzleSlots(newSlots); setSelectedPiece(null);
+    // Check if complete
+    if (newSlots.every(s => s !== null)) {
+      const correct = newSlots.every((s, i) => s === puzzlePieces[i]);
+      if (correct) {
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
+        speakText('Amazing! You completed the puzzle!');
+      } else {
+        speakText('Almost! Try rearranging the pieces.');
+      }
+    }
+  };
+
+  // ==================== CHAT ====================
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setChatInput(''); setChatLoading(true);
+    if (chatMessages.length === 0) {
+      fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
+    }
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, history: chatMessages.slice(-6) }) });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: 'Oops! Something went wrong. Try again! 🙈' }]); }
+    setChatLoading(false);
+  };
+
+  // ==================== FEEDBACK ====================
+  const sendFeedback = async () => {
+    if (feedbackRating === 0) return;
+    try {
+      await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }) });
+      setFeedbackSent(true);
+    } catch {}
+  };
+
+  // ==================== LOAD DATA ====================
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) { const data = await res.json(); setHistory(data.map((h: any) => ({ ...h, timestamp: new Date(h.createdAt) }))); }
+    } catch {}
+  };
+
+  const fetchAchievements = async () => {
+    try {
+      const res = await fetch('/api/achievements');
+      if (res.ok) setAchievements(await res.json());
+    } catch {}
+  };
+
+  useEffect(() => { if (user) { fetchHistory(); fetchAchievements(); } }, [user]);
+  useEffect(() => { if (activeTab === 'profile' && user) fetchAchievements(); }, [activeTab, user]);
+
+  // ==================== UPDATE PROFILE ====================
+  const updateProfile = async (updates: { language?: string; theme?: string }) => {
+    try {
+      const res = await fetch('/api/auth/update', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+      if (res.ok) { const data = await res.json(); setUser(data); }
+    } catch {}
+  };
+
+  // ==================== AUTH SCREEN ====================
+  if (!user) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br ${currentTheme.bg} p-4`}>
+        <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-7xl mb-4">🔍</motion.div>
+        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-orange-500 to-green-500 bg-clip-text text-transparent">What&apos;s This?</h1>
+        <p className="text-gray-500 mb-8">AI-Powered Object Learning for Kids</p>
+        <AnimatePresence mode="wait">
+          {showAuth ? (
+            <motion.div key={showAuth} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-sm">
+              <h2 className="text-2xl font-bold mb-4 text-center">{showAuth === 'login' ? 'Welcome Back!' : 'Join the Fun! 🎉'}</h2>
+              {authError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm mb-4 text-center">{authError}</div>}
+              {showAuth === 'register' && (
+                <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">Username</label>
+                  <Input placeholder="CoolKid123" value={authForm.username} onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))} className="rounded-xl" /></div>
+              )}
+              <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">Email</label>
+                <Input type="email" placeholder="kid@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} className="rounded-xl" /></div>
+              <div className="mb-4"><label className="text-sm font-medium text-gray-600 mb-1 block">Password</label>
+                <Input type="password" placeholder="••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} className="rounded-xl" /></div>
+              <Button onClick={() => handleAuth(showAuth)} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-xl py-5 text-lg">
+                {showAuth === 'login' ? 'Login' : 'Create Account'}
+              </Button>
+              <p className="text-center text-sm text-gray-500 mt-3">
+                {showAuth === 'login' ? "Don't have an account? " : "Already have an account? "}
+                <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="text-purple-600 font-semibold">{showAuth === 'login' ? 'Register' : 'Login'}</button>
+              </p>
+              <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-2">Cancel</button>
+            </motion.div>
+          ) : (
+            <motion.div key="buttons" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full max-w-sm">
+              <Button onClick={() => setShowAuth('register')} size="lg" className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 text-white font-bold text-lg rounded-2xl py-6 shadow-xl">
+                🎉 Create Account
+              </Button>
+              <Button onClick={() => setShowAuth('login')} size="lg" variant="outline" className="font-bold text-lg rounded-2xl py-6">
+                🔑 Login
+              </Button>
+              <Button onClick={() => { setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' }); }} variant="ghost" className="text-gray-500">
+                Continue as Guest →
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ==================== MAIN APP LAYOUT ====================
   const showCameraFeed = cameraActive && !capturedImage;
   const showCaptured = !!capturedImage;
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-orange-50 via-yellow-50 to-green-50">
+    <div className={`min-h-screen flex flex-col bg-gradient-to-br ${currentTheme.bg}`}>
       {/* Header */}
-      <header className="relative overflow-hidden bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 py-4 px-4 sm:py-6 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,0.3)_0%,transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_50%,rgba(255,255,255,0.2)_0%,transparent_50%)]" />
+      <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
         <div className="relative max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              className="text-3xl sm:text-4xl"
-            >
-              🔍
-            </motion.div>
+          <div className="flex items-center gap-2">
+            <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
             <div>
-              <h1 className="text-xl sm:text-3xl font-extrabold text-white drop-shadow-md">
-                What&apos;s This?
-              </h1>
-              <p className="text-xs sm:text-sm text-white/90 font-medium">
-                Point, Snap &amp; Learn!
-              </p>
+              <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">What&apos;s This?</h1>
+              <p className="text-[10px] sm:text-xs text-white/80">Hi, {user.displayName || user.username}! 👋</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {history.length > 0 && (
-              <motion.div whileTap={{ scale: 0.9 }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="bg-white/20 hover:bg-white/30 text-white rounded-full h-10 w-10 sm:h-11 sm:w-11"
-                >
-                  <History className="h-5 w-5" />
-                </Button>
-              </motion.div>
-            )}
-            {cameraSupported && (
-              <motion.div whileTap={{ scale: 0.9 }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleCamera}
-                  className={`rounded-full h-10 w-10 sm:h-11 sm:w-11 ${
-                    cameraActive
-                      ? 'bg-red-400/80 hover:bg-red-500/80 text-white'
-                      : 'bg-white/20 hover:bg-white/30 text-white'
-                  }`}
-                >
-                  <Camera className="h-5 w-5" />
-                </Button>
-              </motion.div>
-            )}
+          <div className="flex items-center gap-1">
+            {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
+            <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
-        {/* Camera / Image Display */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-black aspect-[4/3] max-h-[60vh]">
-          {/* Video element - always rendered, visibility controlled by CSS */}
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            autoPlay
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-              showCameraFeed ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'
-            }`}
-          />
-
-          {/* Captured image overlay */}
-          <AnimatePresence>
-            {showCaptured && (
-              <motion.img
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                src={capturedImage}
-                alt="Captured object"
-                className="absolute inset-0 w-full h-full object-cover z-[2]"
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Placeholder (no camera active, no captured image) */}
-          <AnimatePresence>
-            {showPlaceholder && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-4 p-8 z-[3]"
-              >
-                <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="text-6xl sm:text-7xl"
-                >
-                  📸
-                </motion.div>
-                <div className="text-center">
-                  <p className="text-lg sm:text-xl font-bold">Ready to Explore?</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {cameraSupported
-                      ? 'Tap the camera button or upload an image to start'
-                      : 'Upload an image to start learning!'}
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Loading camera indicator */}
-          <AnimatePresence>
-            {cameraLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3 z-[5]"
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Camera className="h-12 w-12 text-yellow-400" />
-                </motion.div>
-                <p className="text-white text-lg font-bold">Starting Camera...</p>
-                <p className="text-white/70 text-sm">Please allow camera access</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Corner decorations - visible when camera is active */}
-          <div className={`absolute inset-0 pointer-events-none z-[4] transition-opacity duration-300 ${showCameraFeed ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="absolute top-3 left-3 w-8 h-8 border-t-[3px] border-l-[3px] border-yellow-400 rounded-tl-lg" />
-            <div className="absolute top-3 right-3 w-8 h-8 border-t-[3px] border-r-[3px] border-yellow-400 rounded-tr-lg" />
-            <div className="absolute bottom-3 left-3 w-8 h-8 border-b-[3px] border-l-[3px] border-yellow-400 rounded-bl-lg" />
-            <div className="absolute bottom-3 right-3 w-8 h-8 border-b-[3px] border-r-[3px] border-yellow-400 rounded-br-lg" />
-          </div>
-
-          {/* Crosshair overlay */}
-          <AnimatePresence>
-            {showCameraFeed && !isIdentifying && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center z-[4] pointer-events-none"
-              >
-                <div className="w-24 h-24 border-2 border-white/40 rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Identifying overlay */}
-          <AnimatePresence>
-            {isIdentifying && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3 z-[6]"
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Sparkles className="h-12 w-12 text-yellow-400" />
-                </motion.div>
-                <p className="text-white text-lg font-bold">Identifying...</p>
-                <p className="text-white/70 text-sm">Let me see what this is!</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Error overlay */}
-          <AnimatePresence>
-            {error && !isIdentifying && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute bottom-4 left-4 right-4 z-[7]"
-              >
-                <div className="bg-red-500/90 backdrop-blur-sm text-white px-4 py-3 rounded-2xl text-sm font-medium text-center shadow-lg">
-                  {error}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4">
-          {capturedImage && currentResult ? (
-            <>
-              {/* Try Again Button */}
-              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <Button
-                  onClick={resetView}
-                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white shadow-lg shadow-orange-300/50 text-xl"
-                >
-                  <RotateCcw className="h-6 w-6" />
-                </Button>
-              </motion.div>
-
-              {/* Capture New Button (camera) or Upload New */}
-              {cameraActive ? (
-                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                  <Button
-                    onClick={captureAndIdentify}
-                    disabled={isIdentifying}
-                    className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-300/50 disabled:opacity-50 disabled:cursor-not-allowed text-3xl"
-                  >
-                    📷
-                  </Button>
-                </motion.div>
-              ) : (
-                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isIdentifying}
-                    className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-300/50 disabled:opacity-50 disabled:cursor-not-allowed text-3xl"
-                  >
-                    📷
-                  </Button>
-                </motion.div>
-              )}
-
-              {/* Voice Settings / Replay Button */}
-              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <Button
-                  onClick={() => {
-                    if (isSpeaking) {
-                      if (audioRef.current) {
-                        audioRef.current.pause();
-                        audioRef.current = null;
-                      }
-                      setIsSpeaking(false);
-                    } else {
-                      setShowVoiceSettings(!showVoiceSettings);
-                    }
-                  }}
-                  className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full shadow-lg disabled:opacity-50 text-xl transition-colors ${
-                    showVoiceSettings
-                      ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-blue-300/50'
-                      : 'bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white shadow-purple-300/50'
-                  }`}
-                >
-                  <Settings className="h-6 w-6" />
-                </Button>
-              </motion.div>
-            </>
-          ) : cameraActive ? (
-            <>
-              {/* Switch Camera */}
-              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <Button
-                  onClick={switchCamera}
-                  disabled={cameraLoading || isIdentifying}
-                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/90 shadow-md hover:bg-white text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                >
-                  <SwitchCamera className="h-6 w-6" />
-                </Button>
-              </motion.div>
-
-              {/* Main Capture Button */}
-              <motion.div
-                whileTap={{ scale: 0.85 }}
-                whileHover={{ scale: 1.08 }}
-              >
-                <Button
-                  onClick={captureAndIdentify}
-                  disabled={isIdentifying}
-                  className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-gradient-to-br from-red-400 via-pink-400 to-red-500 hover:from-red-500 hover:via-pink-500 hover:to-red-600 text-white shadow-xl shadow-red-300/50 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 rounded-full border-4 border-white/40" />
-                  <Camera className="h-10 w-10 sm:h-12 sm:w-12 relative z-10" />
-                </Button>
-              </motion.div>
-
-              {/* Upload from Gallery */}
-              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isIdentifying}
-                  className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-white/90 shadow-md hover:bg-white text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                >
-                  <ImagePlus className="h-6 w-6" />
-                </Button>
-              </motion.div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="flex items-center gap-4"
-            >
-              {cameraSupported && (
-                <Button
-                  onClick={startCamera}
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 hover:from-orange-500 hover:via-yellow-500 hover:to-green-500 text-white font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-orange-200/50"
-                >
-                  <Camera className="h-6 w-6 mr-2" />
-                  Open Camera
-                </Button>
-              )}
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                size="lg"
-                className="bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 hover:from-purple-500 hover:via-pink-500 hover:to-rose-500 text-white font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-purple-200/50"
-              >
-                <Upload className="h-6 w-6 mr-2" />
-                Upload Image
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </motion.div>
-          )}
-        </div>
-
-        {/* Result Card */}
-        <AnimatePresence mode="wait">
-          {currentResult && (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ type: 'spring', damping: 20 }}
-            >
-              <Card className="border-2 border-yellow-200 bg-white/90 backdrop-blur-sm shadow-xl shadow-yellow-100/50 overflow-hidden">
-                {/* Colorful top bar */}
-                <div className="h-2 bg-gradient-to-r from-orange-400 via-yellow-400 via-green-400 to-teal-400" />
-
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-start gap-4">
-                    {/* Emoji */}
-                    <motion.div
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ type: 'spring', delay: 0.2 }}
-                      className="text-5xl sm:text-6xl flex-shrink-0"
-                    >
-                      {currentResult.emoji}
-                    </motion.div>
-
-                    <div className="flex-1 min-w-0">
-                      {/* Name and category */}
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-800">
-                          {currentResult.name}
-                        </h2>
-                        <Badge
-                          variant="secondary"
-                          className="bg-green-100 text-green-700 font-semibold text-xs"
-                        >
-                          {currentResult.category}
-                        </Badge>
-                      </div>
-
-                      {/* Description */}
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                      >
-                        <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                          {currentResult.description}
-                        </p>
-                      </motion.div>
-
-                      {/* Fun fact */}
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-100"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-xs font-bold text-yellow-700 uppercase tracking-wide">
-                            Fun Fact
-                          </span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-yellow-800">
-                          {currentResult.funFact}
-                        </p>
-                      </motion.div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* History Panel */}
-        <AnimatePresence>
-          {showHistory && history.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="border-2 border-orange-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BookOpen className="h-5 w-5 text-orange-500" />
-                    <h3 className="font-bold text-gray-800">Discovery Log</h3>
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-700 ml-auto">
-                      {history.length} items
-                    </Badge>
-                  </div>
-                  <ScrollArea className="max-h-72 overflow-y-auto">
-                    <div className="space-y-2">
-                      {history.map((item) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="flex items-center gap-3 p-2 rounded-xl hover:bg-orange-50 transition-colors cursor-pointer"
-                          onClick={() => {
-                            setCapturedImage(item.imageData);
-                            setCurrentResult(item);
-                            setShowHistory(false);
-                          }}
-                        >
-                          <div className="text-3xl flex-shrink-0">{item.emoji}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">
-                              {item.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {item.category} &middot;{' '}
-                              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                          <Volume2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        </motion.div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Empty State when no camera */}
-        {!cameraActive && !currentResult && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="text-center py-8"
-          >
-            <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
-              {[
-                { emoji: '🍎', label: 'Fruits' },
-                { emoji: '🐕', label: 'Animals' },
-                { emoji: '🚗', label: 'Vehicles' },
-              ].map((item, i) => (
-                <motion.div
-                  key={item.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 + i * 0.1 }}
-                  className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-white/60 backdrop-blur-sm"
-                >
-                  <span className="text-3xl">{item.emoji}</span>
-                  <span className="text-xs font-medium text-gray-500">{item.label}</span>
-                </motion.div>
-              ))}
+      {/* Settings Dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>⚙️ Settings</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold mb-2 block">🎨 Theme</label>
+              <div className="grid grid-cols-3 gap-2">
+                {THEMES.map(t => (
+                  <button key={t.id} onClick={() => { setTheme(t.id); updateProfile({ theme: t.id }); }}
+                    className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === t.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    {t.emoji} {t.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-sm text-gray-500 mt-4">
-              Point your camera at any object to learn what it is!
-            </p>
-          </motion.div>
-        )}
+            <div>
+              <label className="text-sm font-semibold mb-2 block">🌐 Language</label>
+              <div className="flex gap-2">
+                {LANGUAGES.map(l => (
+                  <button key={l.id} onClick={() => { setLanguage(l.id); updateProfile({ language: l.id }); }}
+                    className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    {l.emoji} {l.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-semibold mb-2 block">🎙️ Voice ({voiceSettings.voice})</label>
+              <div className="grid grid-cols-3 gap-1">
+                {API_VOICES.map(v => (
+                  <button key={v.id} onClick={() => setVoiceSettings(p => ({ ...p, voice: v.id }))}
+                    className={`p-1.5 rounded-lg text-[10px] font-medium ${voiceSettings.voice === v.id ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : 'bg-gray-50 text-gray-600'}`}>
+                    {v.emoji} {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-semibold mb-1 block">⚡ Speed: {voiceSettings.speed.toFixed(2)}x</label>
+              <input type="range" min="0.5" max="1.5" step="0.05" value={voiceSettings.speed}
+                onChange={e => setVoiceSettings(p => ({ ...p, speed: parseFloat(e.target.value) }))}
+                className="w-full accent-purple-500" />
+            </div>
+            {!user.isPro && (
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
+                <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
+                <p className="text-xs font-semibold text-yellow-700">Upgrade to Pro</p>
+                <p className="text-[10px] text-yellow-600">Unlock all voices, themes & features!</p>
+                <Button size="sm" className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">🚀 Get Pro</Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* Voice Settings Panel */}
-        <AnimatePresence>
-          {showVoiceSettings && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Sparkles className="h-5 w-5 text-purple-500" />
-                    <h3 className="font-bold text-gray-800">Voice Settings</h3>
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 ml-auto text-xs">
-                      AI Voice
-                    </Badge>
-                  </div>
+      {/* Main Content */}
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-3 flex flex-col gap-3 overflow-hidden">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+          <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-white/80 shadow-sm p-1 mb-2">
+            <TabsTrigger value="home" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-yellow-400 data-[state=active]:text-white"><Home className="h-3.5 w-3.5" /><span className="hidden sm:inline">Home</span></TabsTrigger>
+            <TabsTrigger value="learn" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-400 data-[state=active]:text-white"><BookOpen className="h-3.5 w-3.5" /><span className="hidden sm:inline">Learn</span></TabsTrigger>
+            <TabsTrigger value="games" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"><Gamepad2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Games</span></TabsTrigger>
+            <TabsTrigger value="chat" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">Chat</span></TabsTrigger>
+            <TabsTrigger value="profile" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-red-400 data-[state=active]:text-white"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Me</span></TabsTrigger>
+          </TabsList>
 
-                  {/* Voice Selection */}
-                  <div className="mb-4">
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                      🎙️ Voice
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {API_VOICES.map((v) => (
-                        <button
-                          key={v.id}
-                          onClick={() => setVoiceSettings((prev) => ({ ...prev, voice: v.id }))}
-                          className={`p-2.5 rounded-xl text-xs font-medium transition-all text-left ${
-                            voiceSettings.voice === v.id
-                              ? 'bg-purple-100 border-2 border-purple-400 text-purple-700 shadow-sm'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-200'
-                          }`}
-                        >
-                          <span className="mr-1">{v.emoji}</span> {v.label}
+          {/* ============ HOME TAB ============ */}
+          <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pb-2">
+            {/* Camera View */}
+            <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black aspect-[4/3] max-h-[45vh]">
+              <video ref={videoRef} playsInline muted autoPlay
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`} />
+              <AnimatePresence>
+                {showCaptured && (
+                  <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    src={capturedImage!} alt="Captured" className="absolute inset-0 w-full h-full object-contain z-20 bg-black"
+                    style={{ transform: `rotate(${imageRotation}deg)` }} />
+                )}
+              </AnimatePresence>
+              {showPlaceholder && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
+                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
+                  <p className="text-sm font-bold">Ready to Explore?</p>
+                  <p className="text-xs text-gray-400">{cameraSupported ? 'Use camera or upload' : 'Upload an image'}</p>
+                </div>
+              )}
+              {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
+              {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">Identifying...</p></div>}
+              {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-center gap-3">
+              {capturedImage && currentResult ? (
+                <>
+                  <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
+                  <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
+                  <Btn icon={isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />} onClick={isSpeaking ? stopSpeaking : () => playVoice()} color="purple" />
+                </>
+              ) : cameraActive ? (
+                <>
+                  <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={switchCamera} color="white" />
+                  <BigBtn onClick={captureAndIdentify} disabled={isIdentifying}>📷</BigBtn>
+                  <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={() => fileInputRef.current?.click()} color="white" />
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
+                  {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />Camera</Button>}
+                  <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />Upload</Button>
+                </div>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { stopCamera(); setCameraActive(false); identifyImage(r.result as string); }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
+            </div>
+
+            {/* Result Card */}
+            <AnimatePresence>
+              {currentResult && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
+                  <Card className="border-2 border-yellow-200 bg-white/90 shadow-xl overflow-hidden">
+                    <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{currentResult.name}</h2>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
+                            {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
+                          </div>
+                          <p className="text-sm text-gray-600">{currentResult.description}</p>
+                          <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
+                            <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">FUN FACT</span></div>
+                            <p className="text-xs text-yellow-800">{currentResult.funFact}</p>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <button onClick={() => { setActiveTab('learn'); startSpell(); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">📝 Spell It</button>
+                            <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 Quiz</button>
+                            <button onClick={() => { setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 Puzzle</button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Speaking indicator */}
+            <AnimatePresence>{isSpeaking && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-1.5">
+              {[0, 1, 2].map(i => <motion.div key={i} animate={{ scaleY: [1, 1.8, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} className="w-1 h-3 bg-purple-400 rounded-full" />)}
+              <span className="text-xs text-purple-600 ml-1">Speaking...</span>
+            </motion.div>}</AnimatePresence>
+          </TabsContent>
+
+          {/* ============ LEARN TAB ============ */}
+          <TabsContent value="learn" className="flex-1 min-h-0 overflow-y-auto pb-2">
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> Learn & Practice</h3>
+
+              {/* Spell the Word */}
+              {currentResult ? (
+                <Card className="border-2 border-blue-200 bg-white/90">
+                  <CardContent className="p-4">
+                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">📝 Spell the Word <span className="text-2xl">{currentResult.emoji}</span></h4>
+                    <p className="text-xs text-gray-500 mb-3">Can you spell &quot;{spellWord}&quot;?</p>
+                    {spellResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">✅ Correct! Amazing!</div>}
+                    {spellResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">❌ Not quite! The word is &quot;{spellWord}&quot;</div>}
+                    <div className="flex gap-2 mb-2">
+                      <Input placeholder="Type here..." value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
+                        onKeyDown={e => e.key === 'Enter' && spellInput && checkSpell()} className="rounded-xl flex-1" />
+                      <Button onClick={checkSpell} disabled={!spellInput} className="bg-blue-500 text-white rounded-xl">Check</Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? spellWord.split('').join(' ') : 'Show Hint'}</button>
+                      <button onClick={() => speakText(`Spell: ${spellWord}`)} className="text-xs text-purple-600 hover:underline">🔊 Listen</button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-2 border-gray-200 bg-white/60"><CardContent className="p-4 text-center text-gray-400 text-sm">
+                  📸 Identify an object first to practice spelling!
+                </CardContent></Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ============ GAMES TAB ============ */}
+          <TabsContent value="games" className="flex-1 min-h-0 overflow-y-auto pb-2">
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> Mini Games</h3>
+
+              {/* Quiz */}
+              {quizActive ? (
+                <Card className="border-2 border-green-200 bg-white/90">
+                  <CardContent className="p-4">
+                    <h4 className="font-bold mb-3 flex items-center gap-2">🧠 Quiz Time!</h4>
+                    {capturedImage && <img src={capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
+                    <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {quizOptions.map((opt, i) => (
+                        <button key={i} onClick={() => answerQuiz(opt)}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer ? (opt === currentResult?.name ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                          {opt}
                         </button>
                       ))}
                     </div>
-                  </div>
+                    {showQuizResult && (
+                      <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        {quizScore.score === 1 ? '🎉 Correct!' : `❌ Wrong! It was ${currentResult?.name}`}
+                        <div className="mt-2"><button onClick={startQuiz} className="text-xs underline">Try Again</button></div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={currentResult ? startQuiz : undefined}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="text-3xl">🧠</div>
+                    <div className="flex-1"><h4 className="font-bold text-gray-800">Quiz Challenge</h4><p className="text-xs text-gray-500">{currentResult ? 'Test your knowledge!' : 'Identify an object first'}</p></div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </CardContent>
+                </Card>
+              )}
 
-                  {/* Speed Control */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        ⚡ Speed
-                      </label>
-                      <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                        {voiceSettings.speed.toFixed(2)}x
-                      </span>
+              {/* Puzzle */}
+              {puzzleActive ? (
+                <Card className="border-2 border-purple-200 bg-white/90">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold">🧩 Puzzle</h4>
+                      <button onClick={() => setPuzzleActive(false)} className="text-xs text-gray-500 hover:underline">Close</button>
                     </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="1.5"
-                      step="0.05"
-                      value={voiceSettings.speed}
-                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, speed: parseFloat(e.target.value) }))}
-                      className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
-                    />
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>Slow</span>
-                      <span className="text-purple-500 font-medium">Kid-friendly</span>
-                      <span>Fast</span>
+                    <div className="grid grid-cols-2 gap-1.5 mb-3">
+                      {puzzleSlots.map((piece, i) => (
+                        <div key={i} onClick={() => placePiece(i)}
+                          className={`aspect-square rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-cover bg-center' : 'border-gray-300 bg-gray-50'}`}
+                          style={piece ? { backgroundImage: `url(${piece})` } : {}}>
+                          {!piece && <span className="text-gray-300 text-xl">+</span>}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-
-                  {/* Preset Buttons */}
-                  <div className="mb-4">
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                      🎭 Presets
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => setVoiceSettings({ voice: 'chuichui', speed: 0.75 })}
-                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.voice === 'chuichui' && voiceSettings.speed === 0.75
-                            ? 'bg-yellow-100 border-2 border-yellow-400 text-yellow-700'
-                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200'
-                        }`}
-                      >
-                        👶 Toddler
-                      </button>
-                      <button
-                        onClick={() => setVoiceSettings({ voice: 'chuichui', speed: 0.85 })}
-                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.voice === 'chuichui' && voiceSettings.speed === 0.85
-                            ? 'bg-green-100 border-2 border-green-400 text-green-700'
-                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-green-50 hover:border-green-200'
-                        }`}
-                      >
-                        🧒 Kid
-                      </button>
-                      <button
-                        onClick={() => setVoiceSettings({ voice: 'tongtong', speed: 1.0 })}
-                        className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.voice === 'tongtong' && voiceSettings.speed === 1.0
-                            ? 'bg-blue-100 border-2 border-blue-400 text-blue-700'
-                            : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200'
-                        }`}
-                      >
-                        🧑 Normal
-                      </button>
+                    <p className="text-[10px] text-gray-500 text-center">Tap a piece below, then tap a slot to place it</p>
+                    <div className="grid grid-cols-4 gap-1.5 mt-2">
+                      {puzzlePieces.map((piece, i) => (
+                        <div key={i} onClick={() => setSelectedPiece(i)}
+                          className={`aspect-square rounded-lg bg-cover bg-center cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
+                          style={{ backgroundImage: `url(${piece})` }} />
+                      ))}
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={capturedImage ? startPuzzle : undefined}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="text-3xl">🧩</div>
+                    <div className="flex-1"><h4 className="font-bold text-gray-800">Puzzle Game</h4><p className="text-xs text-gray-500">{capturedImage ? 'Solve the puzzle!' : 'Upload an image first'}</p></div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => playVoice()}
-                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Volume2 className="h-4 w-4" />
-                      Play Again
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (audioRef.current) {
-                          audioRef.current.pause();
-                          audioRef.current = null;
-                        }
-                        setIsSpeaking(false);
-                      }}
-                      className="py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm transition-all flex items-center justify-center gap-1"
-                    >
-                      <VolumeX className="h-4 w-4" />
-                      Stop
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Speaking indicator */}
-        <AnimatePresence>
-          {isSpeaking && !showVoiceSettings && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="flex items-center justify-center gap-2 py-2"
-            >
-              <div className="flex items-center gap-1">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    animate={{ scaleY: [1, 1.8, 1] }}
-                    transition={{
-                      duration: 0.6,
-                      repeat: Infinity,
-                      delay: i * 0.15,
-                    }}
-                    className="w-1.5 h-4 bg-purple-400 rounded-full"
-                  />
-                ))}
+          {/* ============ CHAT TAB ============ */}
+          <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col pb-2">
+            <div className="flex-1 min-h-0 flex flex-col bg-white/60 rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 p-3 border-b border-gray-100">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
+                <div><p className="text-sm font-bold text-gray-800">AI Buddy</p><p className="text-[10px] text-green-500">Online</p></div>
               </div>
-              <span className="text-sm text-purple-600 font-medium">Speaking...</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
+                <div className="space-y-2">
+                  {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>Hi! Ask me anything!</p><p className="text-xs mt-1">I can help you learn about objects, animals, colors, and more!</p></div>}
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">Thinking...</div></div>}
+                </div>
+              </ScrollArea>
+              <div className="flex gap-2 p-2 border-t border-gray-100">
+                <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Ask me anything..." className="rounded-full text-sm flex-1" />
+                <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ============ PROFILE TAB ============ */}
+          <TabsContent value="profile" className="flex-1 min-h-0 overflow-y-auto pb-2">
+            <div className="space-y-4">
+              {/* User Info */}
+              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4 flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
+                  <p className="text-xs text-gray-500">{user.isPro ? '👑 Pro Member' : 'Free Member'}</p>
+                  {!user.isPro && <button className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">⬆️ Upgrade to Pro</button>}
+                </div>
+              </CardContent></Card>
+
+              {/* Achievements */}
+              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> Achievements ({achievements.length}/{ACHIEVEMENT_DEFS.length})</h4>
+                <Progress value={(achievements.length / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
+                <div className="grid grid-cols-3 gap-2">
+                  {ACHIEVEMENT_DEFS.map(a => {
+                    const unlocked = achievements.find(ach => ach.type === a.type);
+                    return <div key={a.type} className={`p-2 rounded-xl text-center transition-all ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`}>
+                      <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
+                      <p className="text-[10px] font-medium mt-1">{a.title}</p>
+                    </div>;
+                  })}
+                </div>
+              </CardContent></Card>
+
+              {/* History */}
+              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
+                  {history.length > 0 && <button onClick={resetHistory} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5"><Trash2 className="h-3 w-3" /> Clear</button>}
+                </div>
+                {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
+                  <ScrollArea className="max-h-48">
+                    <div className="space-y-1.5">{history.slice(0, 20).map(item => (
+                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
+                        <span className="text-xl">{item.emoji}</span>
+                        <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-[10px] text-gray-400">{item.category}</p></div>
+                        <Volume2 className="h-3.5 w-3.5 text-gray-400" onClick={e => { e.stopPropagation(); speakText(`${item.name}. ${item.description}`); }} />
+                      </div>
+                    ))}</div>
+                  </ScrollArea>
+                )}
+              </CardContent></Card>
+
+              {/* Feedback */}
+              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
+                {feedbackSent ? (
+                  <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-500">How do you like this app?</p>
+                    <div className="flex gap-1">{[1, 2, 3, 4, 5].map(s => (
+                      <button key={s} onClick={() => setFeedbackRating(s)} className={`text-2xl transition-transform hover:scale-125 ${s <= feedbackRating ? '' : 'grayscale opacity-40'}`}>
+                        {s <= feedbackRating ? '⭐' : '☆'}
+                      </button>
+                    ))}</div>
+                    <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
+                    <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
+                  </div>
+                )}
+              </CardContent></Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto py-3 px-4 text-center bg-white/50 backdrop-blur-sm border-t border-gray-100">
-        <p className="text-xs text-gray-400">
-          🔍 What&apos;s This? &mdash; AI-Powered Object Learning for Kids
-        </p>
+      <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
+        <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
       </footer>
     </div>
   );
+}
+
+// ==================== HELPER COMPONENTS ====================
+function Btn({ icon, onClick, color, disabled }: { icon: React.ReactNode; onClick: () => void; color: string; disabled?: boolean }) {
+  const colors: Record<string, string> = {
+    orange: 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-orange-300/50',
+    purple: 'bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-purple-300/50',
+    teal: 'bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-teal-300/50',
+    white: 'bg-white/90 shadow-md text-gray-600 hover:text-gray-800',
+  };
+  return <motion.div whileTap={{ scale: 0.9 }}><Button onClick={onClick} disabled={disabled} className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg ${colors[color]} disabled:opacity-50`}>{icon}</Button></motion.div>;
+}
+
+function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  return <motion.div whileTap={{ scale: 0.85 }} whileHover={{ scale: 1.05 }}>
+    <Button onClick={onClick} disabled={disabled} className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-red-400 via-pink-400 to-red-500 text-white shadow-xl disabled:opacity-50 relative overflow-hidden">
+      <div className="absolute inset-0 rounded-full border-4 border-white/40" />
+      <span className="relative z-10 text-3xl">{children}</span>
+    </Button>
+  </motion.div>;
 }
