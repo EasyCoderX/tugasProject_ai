@@ -2,11 +2,22 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star, Settings, ChevronUp } from 'lucide-react';
+import { Camera, Volume2, VolumeX, RotateCcw, Sparkles, History, SwitchCamera, ImagePlus, BookOpen, Star, Settings, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+
+// API TTS voice options
+const API_VOICES = [
+  { id: 'chuichui', label: 'Chuichui (Playful)', emoji: '🎈' },
+  { id: 'tongtong', label: 'Tongtong (Warm)', emoji: '🌸' },
+  { id: 'xiaochen', label: 'Xiaochen (Calm)', emoji: '🍃' },
+  { id: 'jam', label: 'Jam (British)', emoji: '🎩' },
+  { id: 'kazi', label: 'Kazi (Clear)', emoji: '🎤' },
+  { id: 'douji', label: 'Douji (Natural)', emoji: '🎵' },
+  { id: 'luodo', label: 'Luodo (Expressive)', emoji: '🎭' },
+];
 
 interface IdentifyResult {
   name: string;
@@ -17,9 +28,8 @@ interface IdentifyResult {
 }
 
 interface VoiceSettings {
-  pitch: number;
-  rate: number;
-  voiceName: string;
+  voice: string;
+  speed: number;
 }
 
 interface HistoryItem extends IdentifyResult {
@@ -32,7 +42,9 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraSupported, setCameraSupported] = useState(true);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [currentResult, setCurrentResult] = useState<IdentifyResult | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -44,19 +56,35 @@ export default function Home() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
-    pitch: 1.4,
-    rate: 0.85,
-    voiceName: '',
+    voice: 'chuichui',
+    speed: 0.85,
   });
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const voicesLoaded = useRef(false);
+
+  // Check if camera is available on mount
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setCameraSupported(false);
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Helper: find the correct camera device by enumerating hardware devices
   const getCameraStream = useCallback(async (preferBack: boolean) => {
-    // Step 1: Enumerate devices to find the exact camera by deviceId
     try {
-      // Need a temporary stream first to get permission and device labels
       const tempStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false,
@@ -67,28 +95,22 @@ export default function Home() {
       const videoDevices = devices.filter((d) => d.kind === 'videoinput');
 
       if (videoDevices.length > 1) {
-        // Look for back camera in device labels
         const backKeywords = ['back', 'rear', 'environment', 'arriere', 'posterior', 'trasera', '后面'];
         const frontKeywords = ['front', 'user', 'face', 'avant', 'delantera', '前面'];
-
         let targetDevice: MediaDeviceInfo | undefined;
 
         if (preferBack) {
-          // Find back camera: prefer labeled back, or pick the last device (usually back on mobile)
           targetDevice = videoDevices.find((d) =>
             backKeywords.some((k) => d.label.toLowerCase().includes(k))
           );
           if (!targetDevice) {
-            // On most phones, the last video device is the back camera
             targetDevice = videoDevices[videoDevices.length - 1];
           }
         } else {
-          // Find front camera
           targetDevice = videoDevices.find((d) =>
             frontKeywords.some((k) => d.label.toLowerCase().includes(k))
           );
           if (!targetDevice) {
-            // Usually the first video device is the front camera
             targetDevice = videoDevices[0];
           }
         }
@@ -100,25 +122,22 @@ export default function Home() {
           });
         }
       } else if (videoDevices.length === 1) {
-        // Only one camera — just use it
         return await navigator.mediaDevices.getUserMedia({
           video: { deviceId: { exact: videoDevices[0].deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         });
       }
     } catch {
-      // If device enumeration fails, fall through to facingMode approach
+      // fall through
     }
 
-    // Step 2: Fallback to facingMode constraint
     const facing = preferBack ? 'environment' : 'user';
     try {
       return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
     } catch {
-      // Step 3: Last resort — any camera
       return await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
@@ -137,30 +156,18 @@ export default function Home() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Wait for the video to be ready before showing
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           const video = videoRef.current!;
-          const onLoaded = () => {
-            cleanup();
-            resolve();
-          };
-          const onError = () => {
-            cleanup();
-            reject(new Error('Failed to load video stream'));
-          };
+          const onLoaded = () => { cleanup(); resolve(); };
+          const onError = () => { cleanup(); resolve(); };
           const cleanup = () => {
             video.removeEventListener('loadeddata', onLoaded);
             video.removeEventListener('error', onError);
           };
           video.addEventListener('loadeddata', onLoaded);
           video.addEventListener('error', onError);
-          // Also set a timeout in case events don't fire
-          setTimeout(() => {
-            cleanup();
-            resolve();
-          }, 3000);
+          setTimeout(() => { cleanup(); resolve(); }, 3000);
         });
-
         await videoRef.current.play();
       }
 
@@ -170,11 +177,14 @@ export default function Home() {
     } catch (err) {
       setCameraLoading(false);
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('Camera access denied. Please allow camera access and try again!');
+        setError('Camera access denied. Please allow camera access!');
+        setCameraSupported(false);
       } else if (err instanceof DOMException && err.name === 'NotFoundError') {
         setError('No camera found on this device.');
+        setCameraSupported(false);
       } else {
-        setError('Could not start the camera. Please try again!');
+        setError('Could not start the camera. Try uploading an image instead!');
+        setCameraSupported(false);
       }
     }
   }, [getCameraStream]);
@@ -191,61 +201,15 @@ export default function Home() {
     setCameraActive(false);
   }, []);
 
-  // Load available voices for the settings panel
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        setAvailableVoices(voices);
-        voicesLoaded.current = true;
-
-        // Auto-select a friendly voice if not set
-        if (!voiceSettings.voiceName) {
-          const friendlyVoice = voices.find(
-            (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Karen') || v.name.includes('Moira') || v.name.includes('Tessa') || v.name.includes('Zuzana'))
-          ) || voices.find(
-            (v) => v.lang.startsWith('en') && v.name.includes('Google')
-          ) || voices.find(
-            (v) => v.lang.startsWith('en')
-          );
-          if (friendlyVoice) {
-            setVoiceSettings((prev) => ({ ...prev, voiceName: friendlyVoice.name }));
-          }
-        }
-      }
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
   // Reset to camera view
   const resetView = useCallback(() => {
     setCapturedImage(null);
     setCurrentResult(null);
     setError(null);
     setIsSpeaking(false);
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
     }
   }, []);
 
@@ -256,50 +220,57 @@ export default function Home() {
       `Wow! I found a ${result.name}! How cool is that?`,
       `Ta-da! That's a ${result.name}!`,
       `Yay! It's a ${result.name}!`,
-      `Great job pointing the camera! This is a ${result.name}!`,
+      `Great job! This is a ${result.name}!`,
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
     return `${greeting} ${result.description} And here's a fun fact! ${result.funFact} Keep exploring!`;
   }, []);
 
-  // Play voice using browser's built-in Web Speech API (no server needed)
-  const playVoice = useCallback((result?: IdentifyResult) => {
+  // Play voice using the API TTS
+  const playVoice = useCallback(async (result?: IdentifyResult) => {
     const target = result || currentResult;
     if (!target) return;
 
-    // Cancel any ongoing speech
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
     }
 
     setIsSpeaking(true);
 
     try {
       const text = buildKidScript(target);
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = voiceSettings.rate;    // Slower for kids (0.85)
-      utterance.pitch = voiceSettings.pitch;   // Higher pitch for fun voice (1.4)
-      utterance.volume = 1;
 
-      // Select the user's chosen voice, or a friendly default
-      const voices = window.speechSynthesis.getVoices();
-      if (voiceSettings.voiceName) {
-        const selected = voices.find((v) => v.name === voiceSettings.voiceName);
-        if (selected) utterance.voice = selected;
-      } else {
-        const preferred = voices.find(
-          (v) => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google') || v.name.includes('Karen') || v.name.includes('Moira'))
-        ) || voices.find((v) => v.lang.startsWith('en'));
-        if (preferred) utterance.voice = preferred;
+      const response = await fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice: voiceSettings.voice,
+          speed: voiceSettings.speed,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate voice');
       }
 
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
 
-      // Small delay to ensure speech synthesis is ready (fixes Chrome bug)
-      setTimeout(() => {
-        window.speechSynthesis.speak(utterance);
-      }, 100);
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
     } catch {
       setIsSpeaking(false);
     }
@@ -361,13 +332,7 @@ export default function Home() {
   // Switch camera (front/back)
   const switchCamera = useCallback(async () => {
     const preferBack = facingMode !== 'environment';
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    stopCamera();
     resetView();
     setCameraLoading(true);
     try {
@@ -390,7 +355,7 @@ export default function Home() {
       setCameraLoading(false);
       setError('Could not switch camera.');
     }
-  }, [facingMode, resetView, getCameraStream]);
+  }, [facingMode, resetView, getCameraStream, stopCamera]);
 
   // Upload image from gallery
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -400,19 +365,13 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
+      stopCamera();
       setCameraActive(false);
       identifyFromImage(base64);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
-  }, [identifyFromImage]);
+  }, [identifyFromImage, stopCamera]);
 
   // Toggle camera
   const toggleCamera = useCallback(() => {
@@ -467,20 +426,22 @@ export default function Home() {
                 </Button>
               </motion.div>
             )}
-            <motion.div whileTap={{ scale: 0.9 }}>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleCamera}
-                className={`rounded-full h-10 w-10 sm:h-11 sm:w-11 ${
-                  cameraActive
-                    ? 'bg-red-400/80 hover:bg-red-500/80 text-white'
-                    : 'bg-white/20 hover:bg-white/30 text-white'
-                }`}
-              >
-                <Camera className="h-5 w-5" />
-              </Button>
-            </motion.div>
+            {cameraSupported && (
+              <motion.div whileTap={{ scale: 0.9 }}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleCamera}
+                  className={`rounded-full h-10 w-10 sm:h-11 sm:w-11 ${
+                    cameraActive
+                      ? 'bg-red-400/80 hover:bg-red-500/80 text-white'
+                      : 'bg-white/20 hover:bg-white/30 text-white'
+                  }`}
+                >
+                  <Camera className="h-5 w-5" />
+                </Button>
+              </motion.div>
+            )}
           </div>
         </div>
       </header>
@@ -498,7 +459,6 @@ export default function Home() {
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
               showCameraFeed ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'
             }`}
-
           />
 
           {/* Captured image overlay */}
@@ -535,7 +495,9 @@ export default function Home() {
                 <div className="text-center">
                   <p className="text-lg sm:text-xl font-bold">Ready to Explore?</p>
                   <p className="text-sm text-gray-400 mt-1">
-                    Tap the camera button to start
+                    {cameraSupported
+                      ? 'Tap the camera button or upload an image to start'
+                      : 'Upload an image to start learning!'}
                   </p>
                 </div>
               </motion.div>
@@ -641,21 +603,43 @@ export default function Home() {
                 </Button>
               </motion.div>
 
-              {/* Capture New Button */}
-              <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
-                <Button
-                  onClick={captureAndIdentify}
-                  disabled={!cameraActive || isIdentifying}
-                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-300/50 disabled:opacity-50 disabled:cursor-not-allowed text-3xl"
-                >
-                  📷
-                </Button>
-              </motion.div>
+              {/* Capture New Button (camera) or Upload New */}
+              {cameraActive ? (
+                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
+                  <Button
+                    onClick={captureAndIdentify}
+                    disabled={isIdentifying}
+                    className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-300/50 disabled:opacity-50 disabled:cursor-not-allowed text-3xl"
+                  >
+                    📷
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isIdentifying}
+                    className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-300/50 disabled:opacity-50 disabled:cursor-not-allowed text-3xl"
+                  >
+                    📷
+                  </Button>
+                </motion.div>
+              )}
 
-              {/* Voice Settings Button */}
+              {/* Voice Settings / Replay Button */}
               <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
                 <Button
-                  onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                  onClick={() => {
+                    if (isSpeaking) {
+                      if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current = null;
+                      }
+                      setIsSpeaking(false);
+                    } else {
+                      setShowVoiceSettings(!showVoiceSettings);
+                    }
+                  }}
                   className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full shadow-lg disabled:opacity-50 text-xl transition-colors ${
                     showVoiceSettings
                       ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-blue-300/50'
@@ -717,15 +701,33 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
+              className="flex items-center gap-4"
             >
+              {cameraSupported && (
+                <Button
+                  onClick={startCamera}
+                  size="lg"
+                  className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 hover:from-orange-500 hover:via-yellow-500 hover:to-green-500 text-white font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-orange-200/50"
+                >
+                  <Camera className="h-6 w-6 mr-2" />
+                  Open Camera
+                </Button>
+              )}
               <Button
-                onClick={startCamera}
+                onClick={() => fileInputRef.current?.click()}
                 size="lg"
-                className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 hover:from-orange-500 hover:via-yellow-500 hover:to-green-500 text-white font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-orange-200/50"
+                className="bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 hover:from-purple-500 hover:via-pink-500 hover:to-rose-500 text-white font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-purple-200/50"
               >
-                <Camera className="h-6 w-6 mr-2" />
-                Open Camera
+                <Upload className="h-6 w-6 mr-2" />
+                Upload Image
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </motion.div>
           )}
         </div>
@@ -906,7 +908,7 @@ export default function Home() {
                     <Sparkles className="h-5 w-5 text-purple-500" />
                     <h3 className="font-bold text-gray-800">Voice Settings</h3>
                     <Badge variant="secondary" className="bg-purple-100 text-purple-700 ml-auto text-xs">
-                      Kid Mode
+                      AI Voice
                     </Badge>
                   </div>
 
@@ -915,45 +917,20 @@ export default function Home() {
                     <label className="text-sm font-semibold text-gray-700 mb-2 block">
                       🎙️ Voice
                     </label>
-                    <select
-                      value={voiceSettings.voiceName}
-                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, voiceName: e.target.value }))}
-                      className="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-colors"
-                    >
-                      <option value="">Auto (Best available)</option>
-                      {availableVoices
-                        .filter((v) => v.lang.startsWith('en') || v.lang.startsWith('zh') || v.lang.startsWith('id'))
-                        .map((v) => (
-                          <option key={v.name} value={v.name}>
-                            {v.name} ({v.lang})
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  {/* Pitch Control */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        🎵 Pitch
-                      </label>
-                      <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                        {voiceSettings.pitch.toFixed(1)}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="2.0"
-                      step="0.1"
-                      value={voiceSettings.pitch}
-                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, pitch: parseFloat(e.target.value) }))}
-                      className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
-                    />
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>Low</span>
-                      <span className="text-purple-500 font-medium">Default: 1.4</span>
-                      <span>High</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {API_VOICES.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setVoiceSettings((prev) => ({ ...prev, voice: v.id }))}
+                          className={`p-2.5 rounded-xl text-xs font-medium transition-all text-left ${
+                            voiceSettings.voice === v.id
+                              ? 'bg-purple-100 border-2 border-purple-400 text-purple-700 shadow-sm'
+                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-purple-50 hover:border-purple-200'
+                          }`}
+                        >
+                          <span className="mr-1">{v.emoji}</span> {v.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -964,7 +941,7 @@ export default function Home() {
                         ⚡ Speed
                       </label>
                       <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                        {voiceSettings.rate.toFixed(2)}x
+                        {voiceSettings.speed.toFixed(2)}x
                       </span>
                     </div>
                     <input
@@ -972,27 +949,27 @@ export default function Home() {
                       min="0.5"
                       max="1.5"
                       step="0.05"
-                      value={voiceSettings.rate}
-                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                      value={voiceSettings.speed}
+                      onChange={(e) => setVoiceSettings((prev) => ({ ...prev, speed: parseFloat(e.target.value) }))}
                       className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-purple-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
                     />
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
                       <span>Slow</span>
-                      <span className="text-purple-500 font-medium">Default: 0.85</span>
+                      <span className="text-purple-500 font-medium">Kid-friendly</span>
                       <span>Fast</span>
                     </div>
                   </div>
 
                   {/* Preset Buttons */}
-                  <div>
+                  <div className="mb-4">
                     <label className="text-sm font-semibold text-gray-700 mb-2 block">
                       🎭 Presets
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       <button
-                        onClick={() => setVoiceSettings({ pitch: 1.6, rate: 0.75, voiceName: voiceSettings.voiceName })}
+                        onClick={() => setVoiceSettings({ voice: 'chuichui', speed: 0.75 })}
                         className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.pitch === 1.6 && voiceSettings.rate === 0.75
+                          voiceSettings.voice === 'chuichui' && voiceSettings.speed === 0.75
                             ? 'bg-yellow-100 border-2 border-yellow-400 text-yellow-700'
                             : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200'
                         }`}
@@ -1000,9 +977,9 @@ export default function Home() {
                         👶 Toddler
                       </button>
                       <button
-                        onClick={() => setVoiceSettings({ pitch: 1.4, rate: 0.85, voiceName: voiceSettings.voiceName })}
+                        onClick={() => setVoiceSettings({ voice: 'chuichui', speed: 0.85 })}
                         className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.pitch === 1.4 && voiceSettings.rate === 0.85
+                          voiceSettings.voice === 'chuichui' && voiceSettings.speed === 0.85
                             ? 'bg-green-100 border-2 border-green-400 text-green-700'
                             : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-green-50 hover:border-green-200'
                         }`}
@@ -1010,9 +987,9 @@ export default function Home() {
                         🧒 Kid
                       </button>
                       <button
-                        onClick={() => setVoiceSettings({ pitch: 1.0, rate: 1.0, voiceName: voiceSettings.voiceName })}
+                        onClick={() => setVoiceSettings({ voice: 'tongtong', speed: 1.0 })}
                         className={`p-2 rounded-xl text-xs font-medium transition-all ${
-                          voiceSettings.pitch === 1.0 && voiceSettings.rate === 1.0
+                          voiceSettings.voice === 'tongtong' && voiceSettings.speed === 1.0
                             ? 'bg-blue-100 border-2 border-blue-400 text-blue-700'
                             : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200'
                         }`}
@@ -1022,14 +999,29 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Test Button */}
-                  <button
-                    onClick={() => playVoice()}
-                    className="w-full mt-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                    Test Voice
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => playVoice()}
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                      Play Again
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (audioRef.current) {
+                          audioRef.current.pause();
+                          audioRef.current = null;
+                        }
+                        setIsSpeaking(false);
+                      }}
+                      className="py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm transition-all flex items-center justify-center gap-1"
+                    >
+                      <VolumeX className="h-4 w-4" />
+                      Stop
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -1038,7 +1030,7 @@ export default function Home() {
 
         {/* Speaking indicator */}
         <AnimatePresence>
-          {isSpeaking && (
+          {isSpeaking && !showVoiceSettings && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
