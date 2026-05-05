@@ -1,0 +1,43 @@
+  // ==================== QUIZ ====================
+  const startQuiz = useCallback(async () => {
+    if (!currentResult) return;
+    setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false); setQuizGenerating(true);
+    setQuizQuestion(t('quizQuestion'));
+    setQuizScore({ score: 0, total: 1 });
+    setQuizOptions([]);
+
+    const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== currentResult.name);
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        setQuizQuestion(`${t('generating') || 'Generating options...'} (${t('attempt')} ${attempt + 1}/${maxRetries})`);
+      }
+
+      try {
+        const res = await fetch('/api/quiz/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: currentResult.name, category: currentResult.category, description: currentResult.description, language, recentNames }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const wrongAnswers = Array.isArray(data.wrongAnswers) ? data.wrongAnswers : [];
+          if (wrongAnswers.length >= 4) {
+            const selected = wrongAnswers.sort(() => Math.random() - 0.5).slice(0, 4);
+            const options = [currentResult.name, ...selected].sort(() => Math.random() - 0.5);
+            setQuizOptions(options);
+            setQuizGenerating(false);
+            return;
+          }
+        }
+      } catch {}
+
+      if (attempt < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    setQuizGenerating(false);
+    setQuizQuestion(t('quizError') || 'Could not generate quiz. Please try again!');
+  }, [currentResult, language, history]);

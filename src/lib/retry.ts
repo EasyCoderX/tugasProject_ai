@@ -8,7 +8,7 @@ export interface RetryConfig {
 
 export function isOverloadError(error: unknown): boolean {
   if (error instanceof Error) {
-    return error.message.includes('1305') || error.message.includes('overloaded');
+    return error.message.includes('1305') || error.message.includes('overloaded') || error.message.toLowerCase().includes('server overloaded');
   }
   return false;
 }

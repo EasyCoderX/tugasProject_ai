@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useTranslation, QUIZ_WRONG_ANSWERS, type Lang } from '@/lib/i18n';
+import { useTranslation, type Lang } from '@/lib/i18n';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -130,6 +130,7 @@ export default function HomePage() {
   const [quizActive, setQuizActive] = useState(false);
   const [quizScore, setQuizScore] = useState({ score: 0, total: 0 });
   const [showQuizResult, setShowQuizResult] = useState(false);
+  const [quizGenerating, setQuizGenerating] = useState(false);
 
   // Puzzle state
   const [puzzleActive, setPuzzleActive] = useState(false);
@@ -404,16 +405,35 @@ export default function HomePage() {
   };
 
   // ==================== QUIZ ====================
-  const startQuiz = useCallback(() => {
+  const startQuiz = useCallback(async () => {
     if (!currentResult) return;
-    setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false);
-    const allWrongs = QUIZ_WRONG_ANSWERS[(language as Lang) || 'en'].filter(w => w !== currentResult.name);
-    const shuffled = allWrongs.sort(() => Math.random() - 0.5).slice(0, 2);
-    const options = [currentResult.name, ...shuffled].sort(() => Math.random() - 0.5);
-    setQuizOptions(options);
+    setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false); setQuizGenerating(true);
     setQuizQuestion(t('quizQuestion'));
-    setQuizCorrect(0); setQuizScore({ score: 0, total: 1 });
-  }, [currentResult]);
+    setQuizScore({ score: 0, total: 1 });
+
+    const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== currentResult.name);
+
+    try {
+      const res = await fetch('/api/quiz/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: currentResult.name, category: currentResult.category, description: currentResult.description, language, recentNames }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const wrongAnswers = Array.isArray(data.wrongAnswers) ? data.wrongAnswers : [];
+        const selected = wrongAnswers.sort(() => Math.random() - 0.5).slice(0, 4);
+        const options = [currentResult.name, ...selected].sort(() => Math.random() - 0.5);
+        setQuizOptions(options);
+        setQuizGenerating(false);
+        return;
+      }
+    } catch {}
+
+    setQuizGenerating(false);
+    setQuizOptions([]);
+    setQuizQuestion(t('quizError') || 'Could not generate quiz. Please try again!');
+  }, [currentResult, language, history]);
 
   const answerQuiz = async (answer: string) => {
     if (!currentResult) return;
@@ -896,14 +916,21 @@ export default function HomePage() {
                     <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                     {capturedImage && <img src={capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
                     <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {quizOptions.map((opt, i) => (
-                        <button key={i} onClick={() => answerQuiz(opt)}
-                          className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer ? (opt === currentResult?.name ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
+                    {quizGenerating ? (
+                      <div className="flex items-center justify-center py-6">
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-6 w-6 text-green-400" /></motion.div>
+                        <span className="ml-2 text-sm text-gray-500">{t('generating') || 'Generating options...'}</span>
+                      </div>
+                    ) : quizOptions.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {quizOptions.map((opt, i) => (
+                          <button key={i} onClick={() => answerQuiz(opt)}
+                            className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer ? (opt === currentResult?.name ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     {showQuizResult && (
                       <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: currentResult?.name })}
@@ -1099,3 +1126,4 @@ function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; on
     </Button>
   </motion.div>;
 }
+

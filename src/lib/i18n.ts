@@ -178,6 +178,8 @@ const translations: Record<Lang, TranslationMap> = {
     quizBtn: 'Quiz',
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Upload an image first',
+    generating: 'Generating options...',
+    quizError: 'Could not generate quiz. Try identifying a new object!',
 
     // Guest
     guest: 'Guest',
@@ -357,6 +359,8 @@ const translations: Record<Lang, TranslationMap> = {
     quizBtn: 'Kuis',
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Unggah gambar terlebih dahulu',
+    generating: 'Menghasilkan opsi...',
+    quizError: 'Kuis tidak dapat dihasilkan. Coba identifikasi objek baru!',
 
     // Guest
     guest: 'Tamu',
@@ -527,6 +531,8 @@ const translations: Record<Lang, TranslationMap> = {
     quizBtn: '测验',
     puzzleBtn: '拼图',
     identifyFirstPuzzle: '先上传一张图片',
+    generating: '正在生成选项...',
+    quizError: '无法生成测验题目。请尝试识别一个新物体！',
 
     // Guest
     guest: '游客',
@@ -566,8 +572,3 @@ export function useTranslation(lang: string) {
   return { t };
 }
 
-export const QUIZ_WRONG_ANSWERS: Record<Lang, string[]> = {
-  en: ['Rock', 'Cloud', 'Shoe', 'Cup', 'Key', 'Hat', 'Ball', 'Tree'],
-  id: ['Batu', 'Awan', 'Sepatu', 'Gelas', 'Kunci', 'Topi', 'Bola', 'Pohon'],
-  zh: ['石头', '云', '鞋子', '杯子', '钥匙', '帽子', '球', '树'],
-};
