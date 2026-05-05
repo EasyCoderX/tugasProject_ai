@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { withRetry, isOverloadError } from '@/lib/retry';
 
 interface IdentifyResponse {
   name: string;
@@ -61,21 +62,22 @@ Rules:
 - If the image is unclear, still try your best
 - Return ONLY the JSON, nothing else`;
 
-    const response = await zai.chat.completions.createVision({
-      model: process.env.VISION_MODEL || 'glm-4v-plus',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            {
-              type: 'image_url',
-              image_url: { url: image },
-            },
-          ],
-        },
-      ],
-      thinking: { type: 'disabled' },
+    const response = await withRetry(async () => {
+      return await zai.chat.completions.create({
+        model: process.env.VISION_MODEL || 'glm-4.6v-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: { url: image },
+              },
+            ],
+          },
+        ],
+      });
     });
 
     const content = response.choices[0]?.message?.content;
@@ -99,7 +101,6 @@ Rules:
         try {
           result = JSON.parse(jsonMatch[0]);
         } catch {
-          // If still fails, create a fallback response
           result = {
             name: 'Something Interesting',
             emoji: '❓',
@@ -131,13 +132,18 @@ Rules:
     return NextResponse.json(result);
   } catch (error) {
     console.error('Identify API Error:', error);
+    let errorMessage = 'Something went wrong. Please try again!';
+    if (error instanceof Error) {
+      if (error.message.includes('1211') || error.message.includes('Unknown Model')) {
+        errorMessage = 'AI model not found. Please contact support.';
+      } else if (error.message.includes('1113') || error.message.includes('Insufficient balance')) {
+        errorMessage = 'AI service needs more credits. Please contact support.';
+      } else if (!isOverloadError(error)) {
+        errorMessage = error.message;
+      }
+    }
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Something went wrong. Please try again!',
-      },
+      { error: errorMessage },
       { status: 500 }
     );
   }

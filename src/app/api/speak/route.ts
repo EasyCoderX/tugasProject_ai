@@ -28,13 +28,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate speed range (0.5 to 2.0)
+    // Validate speed range
     const validSpeed = Math.max(0.5, Math.min(2.0, Number(speed) || 0.9));
 
     const zai = await ZAI.create();
 
-    // TTS API - NO model field needed! Just input, voice, speed, response_format, stream
     const response = await zai.audio.tts.create({
+      model : 'glm-4v-tts',
       input: trimmedText,
       voice: voice,
       speed: validSpeed,

@@ -559,3 +559,9 @@ export function useTranslation(lang: string) {
 
   return { t };
 }
+
+export const QUIZ_WRONG_ANSWERS: Record<Lang, string[]> = {
+  en: ['Rock', 'Cloud', 'Shoe', 'Cup', 'Key', 'Hat', 'Ball', 'Tree'],
+  id: ['Batu', 'Awan', 'Sepatu', 'Gelas', 'Kunci', 'Topi', 'Bola', 'Pohon'],
+  zh: ['石头', '云', '鞋子', '杯子', '钥匙', '帽子', '球', '树'],
+};

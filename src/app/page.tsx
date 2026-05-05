@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, QUIZ_WRONG_ANSWERS, type Lang } from '@/lib/i18n';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -40,14 +40,6 @@ interface VoiceSettings {
   voice: string; speed: number;
 }
 
-const API_VOICES = [
-  { id: 'chuichui', label: 'Chuichui', emoji: '🎈' },
-  { id: 'tongtong', label: 'Tongtong', emoji: '🌸' },
-  { id: 'jam', label: 'Jam', emoji: '🎩' },
-  { id: 'kazi', label: 'Kazi', emoji: '🎤' },
-  { id: 'xiaochen', label: 'Xiaochen', emoji: '🍃' },
-];
-
 const THEMES = [
   { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
   { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
@@ -61,6 +53,14 @@ const LANGUAGES = [
   { id: 'en', name: 'English', emoji: '🇬🇧' },
   { id: 'id', name: 'Indonesia', emoji: '🇮🇩' },
   { id: 'zh', name: '中文', emoji: '🇨🇳' },
+];
+
+const API_VOICES = [
+  { id: 'chuichui', label: 'Chuichui', emoji: '🎈' },
+  { id: 'tongtong', label: 'Tongtong', emoji: '🌸' },
+  { id: 'jam', label: 'Jam', emoji: '🎩' },
+  { id: 'kazi', label: 'Kazi', emoji: '🎤' },
+  { id: 'xiaochen', label: 'Xiaochen', emoji: '🍃' },
 ];
 
 const ACHIEVEMENT_DEFS = [
@@ -134,6 +134,7 @@ export default function HomePage() {
   // Puzzle state
   const [puzzleActive, setPuzzleActive] = useState(false);
   const [puzzlePieces, setPuzzlePieces] = useState<string[]>([]);
+  const [puzzleOriginalPieces, setPuzzleOriginalPieces] = useState<string[]>([]);
   const [puzzleSlots, setPuzzleSlots] = useState<(string | null)[]>([]);
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
 
@@ -145,6 +146,7 @@ export default function HomePage() {
 
   // Profile state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [guestAchievements, setGuestAchievements] = useState<string[]>([]);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -155,10 +157,38 @@ export default function HomePage() {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setCameraSupported(false);
     }
-    fetch('/api/auth/me').then(r => r.json()).then(data => {
+    fetch('/api/auth/me').then(async r => {
+      if (r.status === 401) {
+        const savedLang = localStorage.getItem('language');
+        const savedTheme = localStorage.getItem('theme');
+        const savedVoice = localStorage.getItem('voiceSettings');
+        const savedGuestAchievements = localStorage.getItem('guestAchievements');
+        if (savedLang) setLanguage(savedLang);
+        if (savedTheme) setTheme(savedTheme);
+        if (savedVoice) {
+          try { setVoiceSettings(JSON.parse(savedVoice)); } catch {}
+        }
+        if (savedGuestAchievements) {
+          try { setGuestAchievements(JSON.parse(savedGuestAchievements)); } catch {}
+        }
+        setAuthLoading(false);
+        return;
+      }
+      const data = await r.json();
       if (data.id) { setUser(data); setTheme(data.theme || 'default'); setLanguage(data.language || 'en'); }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
+  }, []);
+
+  // ---- Cleanup camera & audio on unmount ----
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    };
   }, []);
 
   // ---- Chat scroll ----
@@ -279,7 +309,7 @@ export default function HomePage() {
     });
   }, []);
 
-  // ==================== TTS (declared here so identifyImage can use it) ====================
+  // ==================== TTS via API /api/speak ====================
   const doPlayVoice = useCallback(async (result?: IdentifyResult) => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     const target = result || currentResult;
@@ -312,13 +342,14 @@ export default function HomePage() {
       const result: IdentifyResult = await res.json();
       setCurrentResult(result);
       setCapturedImage(rotated); setImageRotation(0);
-      if (user) {
+      if (user && user.id !== 'guest') {
         // Save to DB history
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated }) }).then(() => fetchHistory()).catch(() => {});
         fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
       } else {
         // Guest: just save locally
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
+        unlockGuestAchievement('first_scan');
       }
       doPlayVoice(result);
     } catch { setError(t('couldNotIdentify')); }
@@ -341,6 +372,7 @@ export default function HomePage() {
   const stopSpeaking = useCallback(() => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } setIsSpeaking(false); }, []);
 
   const speakText = useCallback(async (text: string) => {
+    if (!text.trim()) return;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     setIsSpeaking(true);
     try {
@@ -362,7 +394,7 @@ export default function HomePage() {
   }, [stopSpeaking]);
 
   const resetHistory = async () => {
-    await fetch('/api/history', { method: 'DELETE' });
+    if (user?.id !== 'guest') await fetch('/api/history', { method: 'DELETE' });
     setHistory([]);
   };
 
@@ -370,8 +402,8 @@ export default function HomePage() {
   const startQuiz = useCallback(() => {
     if (!currentResult) return;
     setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false);
-    const wrongs = ['Rock', 'Cloud', 'Shoe', 'Cup', 'Key', 'Hat', 'Ball', 'Tree'];
-    const shuffled = wrongs.sort(() => Math.random() - 0.5).slice(0, 2);
+    const allWrongs = QUIZ_WRONG_ANSWERS[(language as Lang) || 'en'].filter(w => w !== currentResult.name);
+    const shuffled = allWrongs.sort(() => Math.random() - 0.5).slice(0, 2);
     const options = [currentResult.name, ...shuffled].sort(() => Math.random() - 0.5);
     setQuizOptions(options);
     setQuizQuestion(t('quizQuestion'));
@@ -380,12 +412,16 @@ export default function HomePage() {
 
   const answerQuiz = async (answer: string) => {
     if (!currentResult) return;
-    const correct = answer === currentResult.name;
+    const correct = answer.toLowerCase().trim() === currentResult.name.toLowerCase();
     setQuizAnswer(answer);
     setQuizScore({ score: correct ? 1 : 0, total: 1 });
     if (correct) {
-      try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
-      try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
+      if (user?.id !== 'guest') {
+        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
+        try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
+      } else {
+        unlockGuestAchievement('quiz_perfect');
+      }
     }
     setTimeout(() => setShowQuizResult(true), 500);
   };
@@ -397,15 +433,27 @@ export default function HomePage() {
   }, [currentResult]);
 
   const checkSpell = () => {
+    if (!spellWord || !spellInput.trim()) return;
     if (spellInput.trim().toLowerCase() === spellWord.toLowerCase()) {
       setSpellResult('correct');
       speakText(t('ttsSpellCorrect', { word: spellWord }));
-      fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'spell_master', title: 'Spelling Bee', emoji: '📝' }) }).catch(() => {});
+      if (user?.id !== 'guest') {
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'spell_master', title: 'Spelling Bee', emoji: '📝' }) }).catch(() => {});
+      } else {
+        unlockGuestAchievement('spell_master');
+      }
     } else {
       setSpellResult('wrong');
       speakText(t('ttsSpellWrong', { word: spellWord }));
     }
   };
+
+  // Auto-start spelling when switching to Learn tab
+  useEffect(() => {
+    if (activeTab === 'learn' && currentResult && !spellWord) {
+      startSpell();
+    }
+  }, [activeTab, currentResult, spellWord, startSpell]);
 
   // ==================== PUZZLE ====================
   const startPuzzle = useCallback(async () => {
@@ -414,15 +462,17 @@ export default function HomePage() {
     img.onload = () => {
       const size = 2;
       const pieces: string[] = [];
+      const pieceIndices: number[] = [];
       const pw = Math.floor(img.width / size), ph = Math.floor(img.height / size);
       for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
         const cv = document.createElement('canvas');
         cv.width = pw; cv.height = ph;
         cv.getContext('2d')!.drawImage(img, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
         pieces.push(cv.toDataURL('image/jpeg', 0.8));
+        pieceIndices.push(pieces.length - 1);
       }
       const shuffled = [...pieces].sort(() => Math.random() - 0.5);
-      setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null);
+      setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null);
       setPuzzleActive(true);
     };
     img.src = capturedImage;
@@ -431,16 +481,23 @@ export default function HomePage() {
   const placePiece = (idx: number) => {
     if (selectedPiece === null) return;
     const newSlots = [...puzzleSlots];
-    // Remove from old slot if exists
-    const oldIdx = newSlots.indexOf(puzzlePieces[selectedPiece]);
+    const newPuzzlePieces = [...puzzlePieces];
+    let movedPiece = newPuzzlePieces[selectedPiece];
+    newPuzzlePieces.splice(selectedPiece, 1);
+    newPuzzlePieces.push(movedPiece);
+    const oldIdx = newSlots.indexOf(movedPiece);
     if (oldIdx >= 0) newSlots[oldIdx] = null;
-    newSlots[idx] = puzzlePieces[selectedPiece];
+    newSlots[idx] = movedPiece;
     setPuzzleSlots(newSlots); setSelectedPiece(null);
-    // Check if complete
+    setPuzzlePieces(newPuzzlePieces);
     if (newSlots.every(s => s !== null)) {
-      const correct = newSlots.every((s, i) => s === puzzlePieces[i]);
+      const correct = newSlots.every((s, i) => s === puzzleOriginalPieces[i]);
       if (correct) {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
+        if (user?.id !== 'guest') {
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
+        } else {
+          unlockGuestAchievement('puzzle_complete');
+        }
         speakText(t('ttsPuzzleComplete'));
       } else {
         speakText(t('ttsPuzzleAlmost'));
@@ -455,23 +512,36 @@ export default function HomePage() {
     setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
     setChatInput(''); setChatLoading(true);
     if (chatMessages.length === 0) {
-      fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
+      if (user?.id !== 'guest') {
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
+      } else {
+        unlockGuestAchievement('chat_first');
+      }
     }
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, history: chatMessages.slice(-6), language }) });
+      if (!res.ok) throw new Error('Chat failed');
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: t('chatError') }]); }
+    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: t('chatError') }]); setError('Chat failed. Please try again!'); }
     setChatLoading(false);
   };
 
   // ==================== FEEDBACK ====================
   const sendFeedback = async () => {
     if (feedbackRating === 0) return;
-    try {
-      await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }) });
+    if (user?.id !== 'guest') {
+      try {
+        const res = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }) });
+        if (res.ok) {
+          setFeedbackSent(true);
+        } else {
+          setError('Failed to send feedback. Please try again!');
+        }
+      } catch { setError('Failed to send feedback. Please try again!'); }
+    } else {
       setFeedbackSent(true);
-    } catch {}
+    }
   };
 
   // ==================== LOAD DATA ====================
@@ -481,7 +551,7 @@ export default function HomePage() {
       if (res.ok) {
         const data = await res.json();
         const items = Array.isArray(data) ? data : (Array.isArray(data.history) ? data.history : []);
-        setHistory(items.map((h: any) => ({ ...h, timestamp: new Date(h.createdAt), imageData: h.imageData || '' })));
+        setHistory(items.map((h: any) => ({ ...h, timestamp: h.createdAt ? new Date(h.createdAt) : new Date(), imageData: h.imageData || '' })));
       }
     } catch {}
   };
@@ -493,8 +563,17 @@ export default function HomePage() {
     } catch {}
   };
 
-  useEffect(() => { if (user) { fetchHistory(); fetchAchievements(); } }, [user]);
-  useEffect(() => { if (activeTab === 'profile' && user) fetchAchievements(); }, [activeTab, user]);
+  const unlockGuestAchievement = (type: string) => {
+    if (!guestAchievements.includes(type)) {
+      const newAchievements = [...guestAchievements, type];
+      setGuestAchievements(newAchievements);
+      localStorage.setItem('guestAchievements', JSON.stringify(newAchievements));
+      setAchievements(prev => [...prev, { id: type, type, title: ACHIEVEMENT_DEFS.find(d => d.type === type)?.title || type, emoji: ACHIEVEMENT_DEFS.find(d => d.type === type)?.emoji || '🏆', unlockedAt: new Date().toISOString() }]);
+    }
+  };
+
+  useEffect(() => { if (user && user.id !== 'guest') { fetchHistory(); fetchAchievements(); } }, [user]);
+  useEffect(() => { if (activeTab === 'profile' && user && user.id !== 'guest') fetchAchievements(); }, [activeTab, user]);
 
   // ==================== UPDATE PROFILE ====================
   const updateProfile = async (updates: { language?: string; theme?: string }) => {
@@ -611,7 +690,7 @@ export default function HomePage() {
               <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {THEMES.map(tm => (
-                  <button key={tm.id} onClick={() => { setTheme(tm.id); updateProfile({ theme: tm.id }); }}
+                  <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
                     className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
                     {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
                   </button>
@@ -622,7 +701,7 @@ export default function HomePage() {
               <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
               <div className="flex gap-2">
                 {LANGUAGES.map(l => (
-                  <button key={l.id} onClick={() => { setLanguage(l.id); updateProfile({ language: l.id }); }}
+                  <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
                     className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
                     {l.emoji} {l.name}
                   </button>
@@ -633,7 +712,7 @@ export default function HomePage() {
               <label className="text-sm font-semibold mb-2 block">🎙️ {t('voice')} ({voiceSettings.voice})</label>
               <div className="grid grid-cols-3 gap-1">
                 {API_VOICES.map(v => (
-                  <button key={v.id} onClick={() => setVoiceSettings(p => ({ ...p, voice: v.id }))}
+                  <button key={v.id} onClick={() => { const newSettings = { ...voiceSettings, voice: v.id }; setVoiceSettings(newSettings); localStorage.setItem('voiceSettings', JSON.stringify(newSettings)); speakText('Hello! This is ' + v.label); }}
                     className={`p-1.5 rounded-lg text-[10px] font-medium ${voiceSettings.voice === v.id ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : 'bg-gray-50 text-gray-600'}`}>
                     {v.emoji} {v.label}
                   </button>
@@ -643,7 +722,7 @@ export default function HomePage() {
             <div>
               <label className="text-sm font-semibold mb-1 block">⚡ {t('speed')}: {voiceSettings.speed.toFixed(2)}x</label>
               <input type="range" min="0.5" max="1.5" step="0.05" value={voiceSettings.speed}
-                onChange={e => setVoiceSettings(p => ({ ...p, speed: parseFloat(e.target.value) }))}
+                onChange={e => { const newSettings = { ...voiceSettings, speed: parseFloat(e.target.value) }; setVoiceSettings(newSettings); localStorage.setItem('voiceSettings', JSON.stringify(newSettings)); }}
                 className="w-full accent-purple-500" />
             </div>
             {!user.isPro && (
@@ -683,10 +762,10 @@ export default function HomePage() {
                 )}
               </AnimatePresence>
               {showPlaceholder && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
                   <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
-                  <p className="text-sm font-bold">{t('readyToExplore')}</p>
-                  <p className="text-xs text-gray-400">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
+                  <p className="text-sm font-bold text-center">{t('readyToExplore')}</p>
+                  <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
                 </div>
               )}
               {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
@@ -764,21 +843,28 @@ export default function HomePage() {
               <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
 
               {/* Spell the Word */}
-              {currentResult ? (
+              {currentResult && spellWord ? (
                 <Card className="border-2 border-blue-200 bg-white/90">
                   <CardContent className="p-4">
                     <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">📝 {t('spellTheWord')} <span className="text-2xl">{currentResult.emoji}</span></h4>
                     <p className="text-xs text-gray-500 mb-3">{t('spellInstruction')}</p>
                     {spellResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('correctAmazing')}</div>}
                     {spellResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('wrongNotQuite', { word: spellWord })}</div>}
-                    <div className="flex gap-2 mb-2">
-                      <Input placeholder={t('typeHere')} value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
-                        onKeyDown={e => e.key === 'Enter' && spellInput && checkSpell()} className="rounded-xl flex-1" />
-                      <Button onClick={checkSpell} disabled={!spellInput} className="bg-blue-500 text-white rounded-xl">{t('checkSpelling')}</Button>
-                    </div>
+                    {spellResult === 'correct' && (
+                      <Button onClick={startSpell} size="sm" className="mb-2 bg-green-500 text-white rounded-xl text-xs">{t('tryAgain')}</Button>
+                    )}
+                    {spellResult !== 'correct' && (
+                      <div className="flex gap-2 mb-2">
+                        <Input placeholder={t('typeHere')} value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
+                          onKeyDown={e => e.key === 'Enter' && spellInput.trim() && checkSpell()} className="rounded-xl flex-1" />
+                        <Button onClick={checkSpell} disabled={!spellInput.trim()} className="bg-blue-500 text-white rounded-xl">{t('checkSpelling')}</Button>
+                      </div>
+                    )}
                     <div className="flex gap-2">
-                      <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? spellWord.split('').join(' ') : t('showHint')}</button>
-                      <button onClick={() => speakText(`Spell: ${spellWord}`)} className="text-xs text-purple-600 hover:underline">🔊 {t('listen')}</button>
+                      {spellResult !== 'correct' && (
+                        <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? (spellWord.length > 0 ? `${spellWord[0]} ${'_ '.repeat(spellWord.length - 1).trim()}` : '') : t('showHint')}</button>
+                      )}
+                      <button onClick={() => speakText(spellWord)} className="text-xs text-purple-600 hover:underline">🔊 {t('listen')}</button>
                     </div>
                   </CardContent>
                 </Card>
@@ -793,13 +879,13 @@ export default function HomePage() {
           {/* ============ GAMES TAB ============ */}
           <TabsContent value="games" className="flex-1 min-h-0 overflow-y-auto pb-2">
             <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> Mini Games</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
 
               {/* Quiz */}
               {quizActive ? (
                 <Card className="border-2 border-green-200 bg-white/90">
                   <CardContent className="p-4">
-                    <h4 className="font-bold mb-3 flex items-center gap-2">🧠 Quiz Time!</h4>
+                    <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                     {capturedImage && <img src={capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
                     <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
                     <div className="grid grid-cols-1 gap-2">
@@ -812,8 +898,8 @@ export default function HomePage() {
                     </div>
                     {showQuizResult && (
                       <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                        {quizScore.score === 1 ? '🎉 Correct!' : `❌ Wrong! It was ${currentResult?.name}`}
-                        <div className="mt-2"><button onClick={startQuiz} className="text-xs underline">Try Again</button></div>
+                        {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: currentResult?.name })}
+                        <div className="mt-2"><button onClick={startQuiz} className="text-xs underline">{t('tryAgain')}</button></div>
                       </div>
                     )}
                   </CardContent>
@@ -822,7 +908,7 @@ export default function HomePage() {
                 <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={currentResult ? startQuiz : undefined}>
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="text-3xl">🧠</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">Quiz Challenge</h4><p className="text-xs text-gray-500">{currentResult ? 'Test your knowledge!' : 'Identify an object first'}</p></div>
+                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </CardContent>
                 </Card>
@@ -833,8 +919,8 @@ export default function HomePage() {
                 <Card className="border-2 border-purple-200 bg-white/90">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">🧩 Puzzle</h4>
-                      <button onClick={() => setPuzzleActive(false)} className="text-xs text-gray-500 hover:underline">Close</button>
+                      <h4 className="font-bold">{t('puzzleChallenge')}</h4>
+                      <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5 mb-3">
                       {puzzleSlots.map((piece, i) => (
@@ -845,7 +931,7 @@ export default function HomePage() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-[10px] text-gray-500 text-center">Tap a piece below, then tap a slot to place it</p>
+                    <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>
                     <div className="grid grid-cols-4 gap-1.5 mt-2">
                       {puzzlePieces.map((piece, i) => (
                         <div key={i} onClick={() => setSelectedPiece(i)}
@@ -859,7 +945,7 @@ export default function HomePage() {
                 <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={capturedImage ? startPuzzle : undefined}>
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="text-3xl">🧩</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">Puzzle Game</h4><p className="text-xs text-gray-500">{capturedImage ? 'Solve the puzzle!' : 'Upload an image first'}</p></div>
+                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </CardContent>
                 </Card>
@@ -872,11 +958,11 @@ export default function HomePage() {
             <div className="flex-1 min-h-0 flex flex-col bg-white/60 rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center gap-2 p-3 border-b border-gray-100">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
-                <div><p className="text-sm font-bold text-gray-800">AI Buddy</p><p className="text-[10px] text-green-500">Online</p></div>
+                <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
               </div>
               <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
                 <div className="space-y-2">
-                  {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>Hi! Ask me anything!</p><p className="text-xs mt-1">I can help you learn about objects, animals, colors, and more!</p></div>}
+                  {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
                   {chatMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
@@ -884,11 +970,11 @@ export default function HomePage() {
                       </div>
                     </div>
                   ))}
-                  {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">Thinking...</div></div>}
+                  {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">{t('chatThinking')}</div></div>}
                 </div>
               </ScrollArea>
               <div className="flex gap-2 p-2 border-t border-gray-100">
-                <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Ask me anything..." className="rounded-full text-sm flex-1" />
+                <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
                 <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -902,14 +988,14 @@ export default function HomePage() {
                 <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
-                  <p className="text-xs text-gray-500">{user.isPro ? '👑 Pro Member' : 'Free Member'}</p>
-                  {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? '⏳ Upgrading...' : '⬆️ Upgrade to Pro'}</button>}
+                  <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
+                  {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
                 </div>
               </CardContent></Card>
 
               {/* Achievements */}
               <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> Achievements ({achievements.length}/{ACHIEVEMENT_DEFS.length})</h4>
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({achievements.length}/{ACHIEVEMENT_DEFS.length})</h4>
                 <Progress value={(achievements.length / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
                 <div className="grid grid-cols-3 gap-2">
                   {ACHIEVEMENT_DEFS.map(a => {
