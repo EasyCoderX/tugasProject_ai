@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -138,6 +138,10 @@ export default function HomePage() {
   const [puzzleSlots, setPuzzleSlots] = useState<(string | null)[]>([]);
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
   const [puzzleResult, setPuzzleResult] = useState<'correct' | 'incorrect' | null>(null);
+  const [puzzleImageWidth, setPuzzleImageWidth] = useState(0);
+  const [puzzleImageHeight, setPuzzleImageHeight] = useState(0);
+  const [puzzlePieceWidth, setPuzzlePieceWidth] = useState(0);
+  const [puzzlePieceHeight, setPuzzlePieceHeight] = useState(0);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -474,7 +478,9 @@ export default function HomePage() {
       }
       const shuffled = [...pieces].sort(() => Math.random() - 0.5);
       setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null); setPuzzleResult(null);
-      setPuzzleActive(true);
+      setPuzzleImageWidth(img.width); setPuzzleImageHeight(img.height);
+	      setPuzzlePieceWidth(pw); setPuzzlePieceHeight(ph);
+	      setPuzzleActive(true);
     };
     img.src = capturedImage;
   }, [capturedImage]);
@@ -922,17 +928,19 @@ export default function HomePage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-bold">{t('puzzleChallenge')}</h4>
-                      <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
+                      <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
                     </div>
+                    {puzzlePieceWidth > 0 && (
                     <div className="grid grid-cols-2 gap-1.5 mb-3">
                       {puzzleSlots.map((piece, i) => (
                         <div key={i} onClick={() => placePiece(i)}
-                          className={`aspect-square rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-contain bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
-                          style={piece ? { backgroundImage: `url(${piece})` } : {}}>
+                          className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
+                          style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: '100% 100%', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
                           {!piece && <span className="text-gray-300 text-xl">+</span>}
                         </div>
                       ))}
                     </div>
+                    )}
                     {/* Puzzle result feedback */}
                     {puzzleResult && (
                       <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
@@ -943,13 +951,15 @@ export default function HomePage() {
                       </div>
                     )}
                     {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
+                    {puzzlePieceWidth > 0 && (
                     <div className="grid grid-cols-4 gap-1.5 mt-2">
                       {puzzlePieces.map((piece, i) => (
                         <div key={i} onClick={() => setSelectedPiece(i)}
-                          className={`aspect-square rounded-lg bg-contain bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
-                          style={{ backgroundImage: `url(${piece})` }} />
+                          className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
+                          style={{ backgroundImage: `url(${piece})`, backgroundSize: '100% 100%', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
                       ))}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
