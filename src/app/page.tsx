@@ -137,6 +137,7 @@ export default function HomePage() {
   const [puzzleOriginalPieces, setPuzzleOriginalPieces] = useState<string[]>([]);
   const [puzzleSlots, setPuzzleSlots] = useState<(string | null)[]>([]);
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
+  const [puzzleResult, setPuzzleResult] = useState<'correct' | 'incorrect' | null>(null);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -472,7 +473,7 @@ export default function HomePage() {
         pieceIndices.push(pieces.length - 1);
       }
       const shuffled = [...pieces].sort(() => Math.random() - 0.5);
-      setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null);
+      setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null); setPuzzleResult(null);
       setPuzzleActive(true);
     };
     img.src = capturedImage;
@@ -492,6 +493,7 @@ export default function HomePage() {
     setPuzzlePieces(newPuzzlePieces);
     if (newSlots.every(s => s !== null)) {
       const correct = newSlots.every((s, i) => s === puzzleOriginalPieces[i]);
+      setPuzzleResult(correct ? 'correct' : 'incorrect');
       if (correct) {
         if (user?.id !== 'guest') {
           fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
@@ -925,17 +927,26 @@ export default function HomePage() {
                     <div className="grid grid-cols-2 gap-1.5 mb-3">
                       {puzzleSlots.map((piece, i) => (
                         <div key={i} onClick={() => placePiece(i)}
-                          className={`aspect-square rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-cover bg-center' : 'border-gray-300 bg-gray-50'}`}
+                          className={`aspect-square rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-contain bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
                           style={piece ? { backgroundImage: `url(${piece})` } : {}}>
                           {!piece && <span className="text-gray-300 text-xl">+</span>}
                         </div>
                       ))}
                     </div>
-                    <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>
+                    {/* Puzzle result feedback */}
+                    {puzzleResult && (
+                      <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
+                        <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
+                        <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
+                          {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
+                        </p>
+                      </div>
+                    )}
+                    {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
                     <div className="grid grid-cols-4 gap-1.5 mt-2">
                       {puzzlePieces.map((piece, i) => (
                         <div key={i} onClick={() => setSelectedPiece(i)}
-                          className={`aspect-square rounded-lg bg-cover bg-center cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
+                          className={`aspect-square rounded-lg bg-contain bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
                           style={{ backgroundImage: `url(${piece})` }} />
                       ))}
                     </div>

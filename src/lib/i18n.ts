@@ -94,6 +94,8 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleInstruction: 'Tap a piece, then tap a slot to place it',
     puzzleComplete: '🎉 Puzzle Complete!',
     puzzleWrong: 'Almost! Try rearranging.',
+    puzzleCorrect: 'Great job! Puzzle solved!',
+    puzzleIncorrect: 'Not quite right. Try again!',
 
     // Chat
     chatTitle: '💬 Ask Anything!',
@@ -270,6 +272,8 @@ const translations: Record<Lang, TranslationMap> = {
       'Ketuk potongan, lalu ketuk slot untuk menempatkannya',
     puzzleComplete: '🎉 Puzzle Selesai!',
     puzzleWrong: 'Hampir! Coba susun ulang.',
+    puzzleCorrect: 'Puzzle berhasil dipecahkan!',
+    puzzleIncorrect: 'Belum tepat. Coba lagi!',
 
     // Chat
     chatTitle: '💬 Tanya Apa Saja!',
@@ -443,6 +447,8 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleInstruction: '点击拼图块，然后点击位置放置',
     puzzleComplete: '🎉 拼图完成！',
     puzzleWrong: '差一点！试试重新排列。',
+    puzzleCorrect: '拼图完成啦！',
+    puzzleIncorrect: '还不对哦，再试试！',
 
     // Chat
     chatTitle: '💬 随便问！',
