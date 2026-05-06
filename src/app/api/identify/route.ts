@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withRetry, isOverloadError } from '@/lib/retry';
+import { withQueue } from '@/lib/zai-queue';
 
 interface IdentifyResponse {
   name: string;
@@ -62,8 +63,9 @@ Rules:
 - If the image is unclear, still try your best
 - Return ONLY the JSON, nothing else`;
 
-    const response = await withRetry(async () => {
-      return await zai.chat.completions.create({
+    const response = await withQueue(() => withRetry(async () => {
+      const z = await ZAI.create();
+      return await z.chat.completions.create({
         model: process.env.VISION_MODEL || 'glm-4.6v-flash',
         messages: [
           {
@@ -78,7 +80,7 @@ Rules:
           },
         ],
       });
-    });
+    }));
 
     const content = response.choices[0]?.message?.content;
 

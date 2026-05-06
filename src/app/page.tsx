@@ -110,6 +110,7 @@ export default function HomePage() {
   // History state
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeHistoryItem, setActiveHistoryItem] = useState<HistoryItem | null>(null);
 
   // Voice state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -131,6 +132,14 @@ export default function HomePage() {
   const [quizScore, setQuizScore] = useState({ score: 0, total: 0 });
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizGenerating, setQuizGenerating] = useState(false);
+  const [quizRevealed, setQuizRevealed] = useState(false);
+  const [quizCorrectAnswer, setQuizCorrectAnswer] = useState<string | null>(null);
+  const [quizCache, setQuizCache] = useState<Array<{
+    historyItem: HistoryItem;
+    options: string[];
+    correctAnswer: string;
+  }>>([]);
+  const [isPreloading, setIsPreloading] = useState(false);
 
   // Puzzle state
   const [puzzleActive, setPuzzleActive] = useState(false);
@@ -393,6 +402,57 @@ export default function HomePage() {
     } catch { setIsSpeaking(false); }
   }, [voiceSettings]);
 
+  // ==================== HELPER: Pick Random History Item ====================
+  const pickRandomHistoryItem = useCallback((excludeId?: string): HistoryItem | null => {
+    if (history.length === 0) return null;
+    const available = excludeId
+      ? history.filter(h => h.id !== excludeId)
+      : history;
+    if (available.length === 0) return history[0];
+    return available[Math.floor(Math.random() * available.length)];
+  }, [history]);
+
+  // ==================== HELPER: Preload Quizzes ====================
+  const preloadQuizzes = useCallback(async () => {
+    if (history.length === 0 || isPreloading || quizCache.length >= 3) return;
+    setIsPreloading(true);
+
+    const needed = 3 - quizCache.length;
+    const cachedIds = new Set(quizCache.map(q => q.historyItem.id));
+    const available = history.filter(h => !cachedIds.has(h.id));
+
+    for (let i = 0; i < Math.min(needed, available.length); i++) {
+      const item = available[i];
+      try {
+        const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== item.name);
+        const res = await fetch('/api/quiz/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: item.name,
+            category: item.category,
+            description: item.description,
+            language,
+            recentNames
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const wrongAnswers = Array.isArray(data.wrongAnswers) ? data.wrongAnswers : [];
+          const selected = wrongAnswers.sort(() => Math.random() - 0.5).slice(0, 4);
+          const options = [item.name, ...selected].sort(() => Math.random() - 0.5);
+          setQuizCache(prev => [...prev, {
+            historyItem: item,
+            options,
+            correctAnswer: item.name
+          }]);
+        }
+      } catch {}
+      if (i < Math.min(needed, available.length) - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+    setIsPreloading(false);
+  }, [history, language, quizCache, isPreloading]);
+
   // ==================== RESET ====================
   const resetView = useCallback(() => {
     setCapturedImage(null); setCurrentResult(null); setError(null); setImageRotation(0);
@@ -417,24 +477,51 @@ export default function HomePage() {
 
   // ==================== QUIZ ====================
   const startQuiz = useCallback(async () => {
-    if (!currentResult) return;
-    setQuizActive(true); setQuizAnswer(null); setShowQuizResult(false); setQuizGenerating(true);
+    // Try to use a cached quiz first (instant, no waiting)
+    if (quizCache.length > 0) {
+      const cached = quizCache[0];
+      setQuizCache(prev => prev.slice(1));
+      setActiveHistoryItem(cached.historyItem);
+      setQuizQuestion(t('quizQuestion'));
+      setQuizCorrectAnswer(cached.correctAnswer);
+      setQuizOptions(cached.options);
+      setQuizAnswer(null);
+      setQuizRevealed(false);
+      setShowQuizResult(false);
+      setQuizActive(true);
+      setQuizScore({ score: 0, total: 1 });
+      // Trigger preload to replenish cache
+      setTimeout(() => preloadQuizzes(), 0);
+      return;
+    }
+
+    // Fallback: generate on-demand
+    const item = activeHistoryItem || pickRandomHistoryItem() || currentResult;
+    if (!item) return;
+
+    setActiveHistoryItem(item);
+    setQuizCorrectAnswer(item.name);
+    setQuizActive(true);
+    setQuizAnswer(null);
+    setQuizRevealed(false);
+    setShowQuizResult(false);
+    setQuizGenerating(true);
     setQuizQuestion(t('quizQuestion'));
     setQuizScore({ score: 0, total: 1 });
 
-    const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== currentResult.name);
+    const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== item.name);
 
     try {
       const res = await fetch('/api/quiz/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: currentResult.name, category: currentResult.category, description: currentResult.description, language, recentNames }),
+        body: JSON.stringify({ name: item.name, category: item.category, description: item.description, language, recentNames }),
       });
       if (res.ok) {
         const data = await res.json();
         const wrongAnswers = Array.isArray(data.wrongAnswers) ? data.wrongAnswers : [];
         const selected = wrongAnswers.sort(() => Math.random() - 0.5).slice(0, 4);
-        const options = [currentResult.name, ...selected].sort(() => Math.random() - 0.5);
+        const options = [item.name, ...selected].sort(() => Math.random() - 0.5);
         setQuizOptions(options);
         setQuizGenerating(false);
         return;
@@ -444,23 +531,36 @@ export default function HomePage() {
     setQuizGenerating(false);
     setQuizOptions([]);
     setQuizQuestion(t('quizError') || 'Could not generate quiz. Please try again!');
-  }, [currentResult, language, history]);
+  }, [activeHistoryItem, currentResult, language, history, quizCache, preloadQuizzes]);
 
-  const answerQuiz = async (answer: string) => {
-    if (!currentResult) return;
-    const correct = answer.toLowerCase().trim() === currentResult.name.toLowerCase();
+  const answerQuiz = (answer: string) => {
+    if (!activeHistoryItem && !currentResult) return;
     setQuizAnswer(answer);
+    // DON'T check correctness or show result yet
+    // Just store the user's answer so UI can show "Reveal Answer" button
+  };
+
+  const revealQuizAnswer = async () => {
+    if (!quizAnswer) return;
+    const correct = quizAnswer.toLowerCase().trim() === (quizCorrectAnswer || '').toLowerCase();
+    setQuizRevealed(true);
     setQuizScore({ score: correct ? 1 : 0, total: 1 });
+    setShowQuizResult(true);
+
     if (correct) {
+      // Unlock achievement, save score (same as current logic)
       if (user?.id !== 'guest') {
         try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
         try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
       } else {
         unlockGuestAchievement('quiz_perfect');
       }
+      // DON'T change activeHistoryItem here - wait until next quiz starts
+      // The "Next Question" button will handle it
     }
-    setTimeout(() => setShowQuizResult(true), 500);
-  };
+    // On wrong: do nothing special, user stays on same question
+    // They can click "Try Another Question" to skip
+  };;
 
   // ==================== SPELL ====================
   const startSpell = useCallback(() => {
@@ -493,7 +593,8 @@ export default function HomePage() {
 
   // ==================== PUZZLE ====================
   const startPuzzle = useCallback(async () => {
-    if (!capturedImage) return;
+    const image = activeHistoryItem?.imageData || capturedImage;
+    if (!image) return;
     const img = new Image();
     img.onload = () => {
       const size = 2;
@@ -513,8 +614,8 @@ export default function HomePage() {
 	      setPuzzlePieceWidth(pw); setPuzzlePieceHeight(ph);
 	      setPuzzleActive(true);
     };
-    img.src = capturedImage;
-  }, [capturedImage]);
+    img.src = image;
+  }, [activeHistoryItem, capturedImage]);
 
   const placePiece = (idx: number) => {
     if (selectedPiece === null) return;
@@ -559,10 +660,10 @@ export default function HomePage() {
     }
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, history: chatMessages.slice(-6), language }) });
-      if (!res.ok) throw new Error('Chat failed');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Chat failed');
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch { setChatMessages(prev => [...prev, { role: 'assistant', content: t('chatError') }]); setError('Chat failed. Please try again!'); }
+    } catch (e) { setChatMessages(prev => [...prev, { role: 'assistant', content: t('chatError') }]); setError(e instanceof Error ? e.message : 'Chat failed. Please try again!'); }
     setChatLoading(false);
   };
 
@@ -613,6 +714,13 @@ export default function HomePage() {
 
   useEffect(() => { if (user && user.id !== 'guest') { fetchHistory(); fetchAchievements(); } }, [user]);
   useEffect(() => { if (activeTab === 'profile' && user && user.id !== 'guest') fetchAchievements(); }, [activeTab, user]);
+
+  // Preload quizzes when history changes
+  useEffect(() => {
+    if (history.length > 0 && quizCache.length < 3) {
+      preloadQuizzes();
+    }
+  }, [history, quizCache.length]);
 
   // ==================== UPDATE PROFILE ====================
   const updateProfile = async (updates: { language?: string; theme?: string }) => {
@@ -925,7 +1033,8 @@ export default function HomePage() {
                 <Card className="border-2 border-green-200 bg-white/90">
                   <CardContent className="p-4">
                     <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
-                    {capturedImage && <img src={capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
+                    {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
+                    {activeHistoryItem && <p className="text-xs text-gray-500 mb-1">{activeHistoryItem.emoji} {activeHistoryItem.name}</p>}
                     <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
                     {quizGenerating ? (
                       <div className="flex items-center justify-center py-6">
@@ -936,16 +1045,32 @@ export default function HomePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {quizOptions.map((opt, i) => (
                           <button key={i} onClick={() => answerQuiz(opt)}
-                            className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer ? (opt === currentResult?.name ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                            className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
                             {opt}
                           </button>
                         ))}
                       </div>
                     ) : null}
-                    {showQuizResult && (
+                    {/* Reveal Answer button - shown after answering but before reveal */}
+                    {quizAnswer && !quizRevealed && (
+                      <div className="mt-3 flex gap-2 justify-center">
+                        <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
+                          {t('revealAnswer') || 'Reveal Answer'}
+                        </button>
+                        <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
+                          {t('tryAnother') || 'Try Another Question'}
+                        </button>
+                      </div>
+                    )}
+                    {/* Result shown after revealing */}
+                    {showQuizResult && quizRevealed && (
                       <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                        {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: currentResult?.name })}
-                        <div className="mt-2"><button onClick={startQuiz} className="text-xs underline">{t('tryAgain')}</button></div>
+                        {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
+                        <div className="mt-2">
+                          <button onClick={startQuiz} className="text-xs underline">
+                            {quizScore.score === 1 ? (t('nextQuestion') || 'Next Question') : (t('tryAnother') || 'Try Another Question')}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -966,7 +1091,21 @@ export default function HomePage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-bold">{t('puzzleChallenge')}</h4>
-                      <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
+                      <div className="flex items-center gap-2">
+                        {history.length > 1 && (
+                          <button onClick={() => {
+                            const newItem = pickRandomHistoryItem(activeHistoryItem?.id);
+                            if (newItem) {
+                              setActiveHistoryItem(newItem);
+                              setPuzzleActive(false);
+                              setTimeout(() => startPuzzle(), 0);
+                            }
+                          }} className="text-xs text-purple-600 hover:underline">
+                            {t('newImage') || 'New Image'}
+                          </button>
+                        )}
+                        <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
+                      </div>
                     </div>
                     {puzzlePieceWidth > 0 && (
                     <div className="grid grid-cols-2 gap-1.5 mb-3">

@@ -8,7 +8,18 @@ export interface RetryConfig {
 
 export function isOverloadError(error: unknown): boolean {
   if (error instanceof Error) {
-    return error.message.includes('1305') || error.message.includes('overloaded') || error.message.toLowerCase().includes('server overloaded');
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes('1305') ||
+      msg.includes('overloaded') ||
+      msg.includes('server overloaded') ||
+      msg.includes('429') ||
+      msg.includes('too many requests') ||
+      msg.includes('concurrency') ||
+      msg.includes('rate limit') ||
+      msg.includes('busy') ||
+      msg.includes('try again later')
+    );
   }
   return false;
 }

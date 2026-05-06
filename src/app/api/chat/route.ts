@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withRetry } from '@/lib/retry';
+import { withQueue } from '@/lib/zai-queue';
 
 const SYSTEM_PROMPT =
   "You are a friendly, enthusiastic teacher for kids aged 3-8. Keep answers very simple, short (1-3 sentences), and fun. Use emojis sometimes. If asked about something complex, simplify it for a child.";
@@ -61,12 +62,13 @@ export async function POST(req: NextRequest) {
     // Add current message
     messages.push({ role: 'user', content: message.trim() });
 
-    const response = await withRetry(async () => {
-      return await zai.chat.completions.create({
+    const response = await withQueue(() => withRetry(async () => {
+      const z = await ZAI.create();
+      return await z.chat.completions.create({
         model: 'glm-4.7-flash',
         messages,
       });
-    });
+    }));
 
     const reply = response.choices[0]?.message?.content;
 

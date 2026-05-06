@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withRetry, isOverloadError } from '@/lib/retry';
+import { withQueue } from '@/lib/zai-queue';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,12 +44,13 @@ ${recentNamesStr ? '- Prefer using objects from the "Recent objects" list above 
 Respond with ONLY a valid JSON array of 8 strings, nothing else:
 ["option1", "option2", "option3", "option4", "option5", "option6", "option7", "option8"]`;
 
-    const response = await withRetry(async () => {
-      return await zai.chat.completions.create({
+    const response = await withQueue(() => withRetry(async () => {
+      const z = await ZAI.create();
+      return await z.chat.completions.create({
         model: 'glm-4.7-flash',
         messages: [{ role: 'user', content: prompt }],
       });
-    });
+    }));
 
     const content = response.choices[0]?.message?.content;
     if (!content) {

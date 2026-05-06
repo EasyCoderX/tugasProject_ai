@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { withQueue } from '@/lib/zai-queue';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,15 +32,16 @@ export async function POST(req: NextRequest) {
     // Validate speed range
     const validSpeed = Math.max(0.5, Math.min(2.0, Number(speed) || 0.9));
 
-    const zai = await ZAI.create();
-
-    const response = await zai.audio.tts.create({
-      model : 'glm-4v-tts',
-      input: trimmedText,
-      voice: voice,
-      speed: validSpeed,
-      response_format: 'wav',
-      stream: false,
+    const response = await withQueue(async () => {
+      const z = await ZAI.create();
+      return await z.audio.tts.create({
+        model : 'glm-4v-tts',
+        input: trimmedText,
+        voice: voice,
+        speed: validSpeed,
+        response_format: 'wav',
+        stream: false,
+      });
     });
 
     const arrayBuffer = await response.arrayBuffer();

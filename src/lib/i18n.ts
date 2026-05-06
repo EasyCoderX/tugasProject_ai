@@ -181,6 +181,10 @@ const translations: Record<Lang, TranslationMap> = {
     identifyFirstPuzzle: 'Upload an image first',
     generating: 'Generating options...',
     quizError: 'Could not generate quiz. Try identifying a new object!',
+    revealAnswer: 'Reveal Answer',
+    nextQuestion: 'Next Question',
+    tryAnother: 'Try Another',
+    newImage: 'New Image',
 
     // Guest
     guest: 'Guest',
@@ -363,6 +367,10 @@ const translations: Record<Lang, TranslationMap> = {
     identifyFirstPuzzle: 'Unggah gambar terlebih dahulu',
     generating: 'Menghasilkan opsi...',
     quizError: 'Kuis tidak dapat dihasilkan. Coba identifikasi objek baru!',
+    revealAnswer: 'Tampilkan Jawaban',
+    nextQuestion: 'Pertanyaan Berikutnya',
+    tryAnother: 'Coba Lagi',
+    newImage: 'Gambar Baru',
 
     // Guest
     guest: 'Tamu',
@@ -536,6 +544,10 @@ const translations: Record<Lang, TranslationMap> = {
     identifyFirstPuzzle: '先上传一张图片',
     generating: '正在生成选项...',
     quizError: '无法生成测验题目。请尝试识别一个新物体！',
+    revealAnswer: '揭晓答案',
+    nextQuestion: '下一题',
+    tryAnother: '再试一次',
+    newImage: '新图片',
 
     // Guest
     guest: '游客',
