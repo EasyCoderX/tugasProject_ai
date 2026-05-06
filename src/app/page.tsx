@@ -545,7 +545,7 @@ export default function HomePage() {
   }, [activeHistoryItem, currentResult, language, history, quizCache, preloadQuizzes]);
 
   const answerQuiz = (answer: string) => {
-    if (!activeHistoryItem && !currentResult) return;
+    if (!activeHistoryItem && !currentResult && history.length === 0) return;
     setQuizAnswer(answer);
     // DON'T check correctness or show result yet
     // Just store the user's answer so UI can show "Reveal Answer" button
@@ -575,9 +575,10 @@ export default function HomePage() {
 
   // ==================== SPELL ====================
   const startSpell = useCallback(() => {
-    if (!currentResult) return;
-    setSpellWord(currentResult.name); setSpellInput(''); setSpellResult(null); setShowSpellHint(false);
-  }, [currentResult]);
+    const target = currentResult || (history.length > 0 ? history[0] : null);
+    if (!target) return;
+    setSpellWord(target.name); setSpellInput(''); setSpellResult(null); setShowSpellHint(false);
+  }, [currentResult, history]);
 
   const checkSpell = () => {
     if (!spellWord || !spellInput.trim()) return;
@@ -597,14 +598,14 @@ export default function HomePage() {
 
   // Auto-start spelling when switching to Learn tab
   useEffect(() => {
-    if (activeTab === 'learn' && currentResult && !spellWord) {
+    if (activeTab === 'learn' && !spellWord && (currentResult || history.length > 0)) {
       startSpell();
     }
-  }, [activeTab, currentResult, spellWord, startSpell]);
+  }, [activeTab, currentResult, spellWord, startSpell, history.length]);
 
   // ==================== PUZZLE ====================
   const startPuzzle = useCallback(async () => {
-    const image = puzzleHistoryItem?.imageData || activeHistoryItem?.imageData || capturedImage;
+    const image = puzzleHistoryItem?.imageData || activeHistoryItem?.imageData || capturedImage || (history.length > 0 ? history[0].imageData : null);
     if (!image) return;
     const img = new Image();
     img.onload = () => {
@@ -634,7 +635,7 @@ export default function HomePage() {
       croppedImg.src = cropCvs.toDataURL('image/jpeg', 0.9);
     };
     img.src = image;
-  }, [puzzleHistoryItem, activeHistoryItem, capturedImage]);
+  }, [puzzleHistoryItem, activeHistoryItem, capturedImage, history]);
 
   const placePiece = (idx: number) => {
     if (selectedPiece === null) return;
@@ -1110,7 +1111,7 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={currentResult ? startQuiz : undefined}>
+                <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="text-3xl">🧠</div>
                     <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
@@ -1174,7 +1175,7 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={capturedImage ? startPuzzle : undefined}>
+                <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="text-3xl">🧩</div>
                     <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
