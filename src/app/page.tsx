@@ -70,7 +70,7 @@ const ACHIEVEMENT_DEFS = [
   { type: 'scan_20', title: 'Professor', emoji: '🎓', desc: 'Identify 20 different objects' },
   { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯', desc: 'Get a perfect score on a quiz' },
   { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩', desc: 'Complete a puzzle correctly' },
-  { type: 'spell_master', title: 'Spelling Bee', emoji: '📝', desc: 'Spell an object name correctly' },
+  { type: 'listen_master', title: 'Good Listener', emoji: '👂', desc: 'Listen and identify an object correctly' },
   { type: 'chat_first', title: 'Chatty Kid', emoji: '💬', desc: 'Send your first chat message' },
   { type: 'feedback_given', title: 'Helper', emoji: '⭐', desc: 'Submit app feedback' },
 ];
@@ -118,11 +118,12 @@ export default function HomePage() {
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ voice: 'chuichui', speed: 0.85 });
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
-  // Learn state
-  const [spellWord, setSpellWord] = useState('');
-  const [spellInput, setSpellInput] = useState('');
-  const [spellResult, setSpellResult] = useState<'correct' | 'wrong' | null>(null);
-  const [showSpellHint, setShowSpellHint] = useState(false);
+  // Listen state
+  const [listenWord, setListenWord] = useState('');
+  const [listenOptions, setListenOptions] = useState<HistoryItem[]>([]);
+  const [listenAnswer, setListenAnswer] = useState<string | null>(null);
+  const [listenResult, setListenResult] = useState<'correct' | 'wrong' | null>(null);
+  const [listenScore, setListenScore] = useState({ score: 0, total: 0 });
 
   // Quiz state
   const [quizQuestion, setQuizQuestion] = useState('');
@@ -219,8 +220,8 @@ export default function HomePage() {
   const { t } = useTranslation(language);
 
   // ---- Achievement key mapping ----
-  const achTitleKey: Record<string, string> = { first_scan: 'achFirstScan', scan_5: 'achExplorer', scan_10: 'achScientist', scan_20: 'achProfessor', quiz_perfect: 'achPerfectScore', puzzle_complete: 'achPuzzleMaster', spell_master: 'achSpellingBee', chat_first: 'achChattyKid', feedback_given: 'achHelper' };
-  const achDescKey: Record<string, string> = { first_scan: 'achFirstScanDesc', scan_5: 'achExplorerDesc', scan_10: 'achScientistDesc', scan_20: 'achProfessorDesc', quiz_perfect: 'achPerfectScoreDesc', puzzle_complete: 'achPuzzleMasterDesc', spell_master: 'achSpellingBeeDesc', chat_first: 'achChattyKidDesc', feedback_given: 'achHelperDesc' };
+  const achTitleKey: Record<string, string> = { first_scan: 'achFirstScan', scan_5: 'achExplorer', scan_10: 'achScientist', scan_20: 'achProfessor', quiz_perfect: 'achPerfectScore', puzzle_complete: 'achPuzzleMaster', listen_master: 'achGoodListener', chat_first: 'achChattyKid', feedback_given: 'achHelper' };
+  const achDescKey: Record<string, string> = { first_scan: 'achFirstScanDesc', scan_5: 'achExplorerDesc', scan_10: 'achScientistDesc', scan_20: 'achProfessorDesc', quiz_perfect: 'achPerfectScoreDesc', puzzle_complete: 'achPuzzleMasterDesc', listen_master: 'achGoodListenerDesc', chat_first: 'achChattyKidDesc', feedback_given: 'achHelperDesc' };
 
   // ---- Theme ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
@@ -573,35 +574,56 @@ export default function HomePage() {
     // They can click "Try Another Question" to skip
   };;
 
-  // ==================== SPELL ====================
-  const startSpell = useCallback(() => {
-    const target = currentResult || (history.length > 0 ? history[0] : null);
-    if (!target) return;
-    setSpellWord(target.name); setSpellInput(''); setSpellResult(null); setShowSpellHint(false);
-  }, [currentResult, history]);
+  // ==================== LISTEN (Browser TTS) ====================
+  const speakBrowserTTS = useCallback((text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      alert('Your browser does not support speech playback. Try Chrome or Edge!');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US';
+    utterance.rate = 0.85;
+    utterance.pitch = 1.1;
+    window.speechSynthesis.speak(utterance);
+  }, [language]);
 
-  const checkSpell = () => {
-    if (!spellWord || !spellInput.trim()) return;
-    if (spellInput.trim().toLowerCase() === spellWord.toLowerCase()) {
-      setSpellResult('correct');
-      speakText(t('ttsSpellCorrect', { word: spellWord }));
+  const startListen = useCallback(() => {
+    if (history.length === 0) return;
+    const correctItem = history[Math.floor(Math.random() * history.length)];
+    const distrators = history.filter(h => h.name !== correctItem.name).sort(() => Math.random() - 0.5).slice(0, 3);
+    const options = [correctItem, ...distrators].sort(() => Math.random() - 0.5);
+    setListenWord(correctItem.name);
+    setListenOptions(options);
+    setListenAnswer(null);
+    setListenResult(null);
+    speakBrowserTTS(correctItem.name);
+  }, [history, speakBrowserTTS]);
+
+  const answerListen = (itemName: string) => {
+    if (!listenWord) return;
+    setListenAnswer(itemName);
+    const correct = itemName === listenWord;
+    setListenResult(correct ? 'correct' : 'wrong');
+    setListenScore(prev => ({ score: prev.score + (correct ? 1 : 0), total: prev.total + 1 }));
+    if (correct) {
+      speakBrowserTTS(t('ttsListenCorrect', { word: listenWord }));
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'spell_master', title: 'Spelling Bee', emoji: '📝' }) }).catch(() => {});
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).catch(() => {});
       } else {
-        unlockGuestAchievement('spell_master');
+        unlockGuestAchievement('listen_master');
       }
     } else {
-      setSpellResult('wrong');
-      speakText(t('ttsSpellWrong', { word: spellWord }));
+      speakBrowserTTS(t('ttsListenWrong', { word: listenWord }));
     }
   };
 
-  // Auto-start spelling when switching to Learn tab
+  // Auto-start listening when switching to Learn tab
   useEffect(() => {
-    if (activeTab === 'learn' && !spellWord && (currentResult || history.length > 0)) {
-      startSpell();
+    if (activeTab === 'learn' && !listenWord && history.length > 0) {
+      startListen();
     }
-  }, [activeTab, currentResult, spellWord, startSpell, history.length]);
+  }, [activeTab, history.length]);
 
   // ==================== PUZZLE ====================
   const startPuzzle = useCallback(async () => {
@@ -1000,7 +1022,7 @@ export default function HomePage() {
                             <p className="text-xs text-yellow-800">{currentResult.funFact}</p>
                           </div>
                           <div className="flex gap-2 mt-3">
-                            <button onClick={() => { setActiveTab('learn'); startSpell(); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">📝 {t('spellIt')}</button>
+                            <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
                             <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
                             <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
                           </div>
@@ -1024,35 +1046,33 @@ export default function HomePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
 
-              {/* Spell the Word */}
-              {currentResult && spellWord ? (
-                <Card className="border-2 border-blue-200 bg-white/90">
+              {/* Listen and Pick */}
+              {listenWord && listenOptions.length > 0 ? (
+                <Card className="border-2 border-green-200 bg-white/90">
                   <CardContent className="p-4">
-                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">📝 {t('spellTheWord')} <span className="text-2xl">{currentResult.emoji}</span></h4>
-                    <p className="text-xs text-gray-500 mb-3">{t('spellInstruction')}</p>
-                    {spellResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('correctAmazing')}</div>}
-                    {spellResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('wrongNotQuite', { word: spellWord })}</div>}
-                    {spellResult === 'correct' && (
-                      <Button onClick={startSpell} size="sm" className="mb-2 bg-green-500 text-white rounded-xl text-xs">{t('tryAgain')}</Button>
-                    )}
-                    {spellResult !== 'correct' && (
-                      <div className="flex gap-2 mb-2">
-                        <Input placeholder={t('typeHere')} value={spellInput} onChange={e => { setSpellInput(e.target.value); setSpellResult(null); }}
-                          onKeyDown={e => e.key === 'Enter' && spellInput.trim() && checkSpell()} className="rounded-xl flex-1" />
-                        <Button onClick={checkSpell} disabled={!spellInput.trim()} className="bg-blue-500 text-white rounded-xl">{t('checkSpelling')}</Button>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      {spellResult !== 'correct' && (
-                        <button onClick={() => setShowSpellHint(!showSpellHint)} className="text-xs text-blue-600 hover:underline">💡 {showSpellHint ? (spellWord.length > 0 ? `${spellWord[0]} ${'_ '.repeat(spellWord.length - 1).trim()}` : '') : t('showHint')}</button>
-                      )}
-                      <button onClick={() => speakText(spellWord)} className="text-xs text-purple-600 hover:underline">🔊 {t('listen')}</button>
+                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
+                    <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
+                    <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
+                    {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
+                    {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {listenOptions.map((opt, i) => (
+                        <button key={i} onClick={() => answerListen(opt.name)} disabled={listenAnswer !== null}
+                          className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (opt.name === listenWord ? 'border-green-400 bg-green-50' : opt.name === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
+                          <img src={opt.imageData} alt={opt.name} className="w-full aspect-square object-cover" />
+                          <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {opt.name}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
+                      <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
                     </div>
                   </CardContent>
                 </Card>
               ) : (
                 <Card className="border-2 border-gray-200 bg-white/60"><CardContent className="p-4 text-center text-gray-400 text-sm">
-                  {t('identifyFirstSpell')}
+                  {t('identifyFirstListen')}
                 </CardContent></Card>
               )}
             </div>
