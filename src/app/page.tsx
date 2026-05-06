@@ -111,6 +111,7 @@ export default function HomePage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [activeHistoryItem, setActiveHistoryItem] = useState<HistoryItem | null>(null);
+  const [puzzleHistoryItem, setPuzzleHistoryItem] = useState<HistoryItem | null>(null);
 
   // Voice state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -374,8 +375,18 @@ export default function HomePage() {
   const captureAndIdentify = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
     const v = videoRef.current, c = canvasRef.current;
-    c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-    c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
+    const containerAspect = 4/3;
+    const videoAspect = (v.videoWidth || 640) / (v.videoHeight || 480);
+    let sx = 0, sy = 0, sw = v.videoWidth || 640, sh = v.videoHeight || 480;
+    if (videoAspect > containerAspect) {
+      sw = sh * containerAspect;
+      sx = ((v.videoWidth || 640) - sw) / 2;
+    } else {
+      sh = sw / containerAspect;
+      sy = ((v.videoHeight || 480) - sh) / 2;
+    }
+    c.width = sw; c.height = sh;
+    c.getContext('2d')?.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
     const dataUrl = c.toDataURL('image/jpeg', 0.8);
     setImageRotation(0);
     await identifyImage(dataUrl);
@@ -593,29 +604,37 @@ export default function HomePage() {
 
   // ==================== PUZZLE ====================
   const startPuzzle = useCallback(async () => {
-    const image = activeHistoryItem?.imageData || capturedImage;
+    const image = puzzleHistoryItem?.imageData || activeHistoryItem?.imageData || capturedImage;
     if (!image) return;
     const img = new Image();
     img.onload = () => {
       const size = 2;
-      const pieces: string[] = [];
-      const pieceIndices: number[] = [];
-      const pw = Math.floor(img.width / size), ph = Math.floor(img.height / size);
-      for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-        const cv = document.createElement('canvas');
-        cv.width = pw; cv.height = ph;
-        cv.getContext('2d')!.drawImage(img, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
-        pieces.push(cv.toDataURL('image/jpeg', 0.8));
-        pieceIndices.push(pieces.length - 1);
-      }
-      const shuffled = [...pieces].sort(() => Math.random() - 0.5);
-      setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null); setPuzzleResult(null);
-      setPuzzleImageWidth(img.width); setPuzzleImageHeight(img.height);
-	      setPuzzlePieceWidth(pw); setPuzzlePieceHeight(ph);
-	      setPuzzleActive(true);
+      // Crop to dimensions evenly divisible by size to avoid partial pieces
+      const cw = Math.floor(img.width / size) * size;
+      const ch = Math.floor(img.height / size) * size;
+      const cropCvs = document.createElement('canvas');
+      cropCvs.width = cw; cropCvs.height = ch;
+      cropCvs.getContext('2d')!.drawImage(img, 0, 0, cw, ch, 0, 0, cw, ch);
+      const croppedImg = new Image();
+      croppedImg.onload = () => {
+        const pw = cw / size, ph = ch / size;
+        const pieces: string[] = [];
+        for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+          const cv = document.createElement('canvas');
+          cv.width = pw; cv.height = ph;
+          cv.getContext('2d')!.drawImage(croppedImg, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
+          pieces.push(cv.toDataURL('image/jpeg', 0.8));
+        }
+        const shuffled = [...pieces].sort(() => Math.random() - 0.5);
+        setPuzzleOriginalPieces([...pieces]); setPuzzlePieces(shuffled); setPuzzleSlots(new Array(4).fill(null)); setSelectedPiece(null); setPuzzleResult(null);
+        setPuzzleImageWidth(cw); setPuzzleImageHeight(ch);
+        setPuzzlePieceWidth(pw); setPuzzlePieceHeight(ph);
+        setPuzzleActive(true);
+      };
+      croppedImg.src = cropCvs.toDataURL('image/jpeg', 0.9);
     };
     img.src = image;
-  }, [activeHistoryItem, capturedImage]);
+  }, [puzzleHistoryItem, activeHistoryItem, capturedImage]);
 
   const placePiece = (idx: number) => {
     if (selectedPiece === null) return;
@@ -941,7 +960,22 @@ export default function HomePage() {
                   <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
                 </div>
               )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { stopCamera(); setCameraActive(false); setImageRotation(0); identifyImage(r.result as string); }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
+                stopCamera(); setCameraActive(false); setImageRotation(0);
+                const img = new Image();
+                img.onload = () => {
+                  const aspect = 4/3;
+                  const imgAspect = img.width / img.height;
+                  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+                  if (imgAspect > aspect) { sw = sh * aspect; sx = (img.width - sw) / 2; }
+                  else { sh = sw / aspect; sy = (img.height - sh) / 2; }
+                  const c = document.createElement('canvas');
+                  c.width = sw; c.height = sh;
+                  c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+                  identifyImage(c.toDataURL('image/jpeg', 0.8));
+                };
+                img.src = r.result as string;
+              }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
             </div>
 
             {/* Result Card */}
@@ -967,7 +1001,7 @@ export default function HomePage() {
                           <div className="flex gap-2 mt-3">
                             <button onClick={() => { setActiveTab('learn'); startSpell(); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">📝 {t('spellIt')}</button>
                             <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
-                            <button onClick={() => { setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
+                            <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
                           </div>
                         </div>
                       </div>
@@ -1094,9 +1128,9 @@ export default function HomePage() {
                       <div className="flex items-center gap-2">
                         {history.length > 1 && (
                           <button onClick={() => {
-                            const newItem = pickRandomHistoryItem(activeHistoryItem?.id);
+                            const newItem = pickRandomHistoryItem(puzzleHistoryItem?.id || activeHistoryItem?.id);
                             if (newItem) {
-                              setActiveHistoryItem(newItem);
+                              setPuzzleHistoryItem(newItem);
                               setPuzzleActive(false);
                               setTimeout(() => startPuzzle(), 0);
                             }
@@ -1104,7 +1138,7 @@ export default function HomePage() {
                             {t('newImage') || 'New Image'}
                           </button>
                         )}
-                        <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
+                        <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); setPuzzleHistoryItem(null); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
                       </div>
                     </div>
                     {puzzlePieceWidth > 0 && (
@@ -1112,7 +1146,7 @@ export default function HomePage() {
                       {puzzleSlots.map((piece, i) => (
                         <div key={i} onClick={() => placePiece(i)}
                           className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
-                          style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: '100% 100%', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
+                          style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
                           {!piece && <span className="text-gray-300 text-xl">+</span>}
                         </div>
                       ))}
@@ -1133,7 +1167,7 @@ export default function HomePage() {
                       {puzzlePieces.map((piece, i) => (
                         <div key={i} onClick={() => setSelectedPiece(i)}
                           className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
-                          style={{ backgroundImage: `url(${piece})`, backgroundSize: '100% 100%', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
+                          style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
                       ))}
                     </div>
                     )}
