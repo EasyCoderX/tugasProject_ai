@@ -36,10 +36,6 @@ interface Achievement {
 interface ChatMessage {
   role: 'user' | 'assistant'; content: string;
 }
-interface VoiceSettings {
-  voice: string; speed: number;
-}
-
 const THEMES = [
   { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
   { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
@@ -53,14 +49,6 @@ const LANGUAGES = [
   { id: 'en', name: 'English', emoji: '🇬🇧' },
   { id: 'id', name: 'Indonesia', emoji: '🇮🇩' },
   { id: 'zh', name: '中文', emoji: '🇨🇳' },
-];
-
-const API_VOICES = [
-  { id: 'chuichui', label: 'Chuichui', emoji: '🎈' },
-  { id: 'tongtong', label: 'Tongtong', emoji: '🌸' },
-  { id: 'jam', label: 'Jam', emoji: '🎩' },
-  { id: 'kazi', label: 'Kazi', emoji: '🎤' },
-  { id: 'xiaochen', label: 'Xiaochen', emoji: '🍃' },
 ];
 
 const ACHIEVEMENT_DEFS = [
@@ -93,7 +81,6 @@ export default function HomePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraSupported, setCameraSupported] = useState(true);
@@ -112,11 +99,6 @@ export default function HomePage() {
   const [showHistory, setShowHistory] = useState(false);
   const [activeHistoryItem, setActiveHistoryItem] = useState<HistoryItem | null>(null);
   const [puzzleHistoryItem, setPuzzleHistoryItem] = useState<HistoryItem | null>(null);
-
-  // Voice state
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ voice: 'chuichui', speed: 0.85 });
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // Listen state
   const [listenWord, setListenWord] = useState('');
@@ -178,15 +160,25 @@ export default function HomePage() {
       if (r.status === 401) {
         const savedLang = localStorage.getItem('language');
         const savedTheme = localStorage.getItem('theme');
-        const savedVoice = localStorage.getItem('voiceSettings');
         const savedGuestAchievements = localStorage.getItem('guestAchievements');
         if (savedLang) setLanguage(savedLang);
         if (savedTheme) setTheme(savedTheme);
-        if (savedVoice) {
-          try { setVoiceSettings(JSON.parse(savedVoice)); } catch {}
-        }
         if (savedGuestAchievements) {
-          try { setGuestAchievements(JSON.parse(savedGuestAchievements)); } catch {}
+          try {
+            const parsed = JSON.parse(savedGuestAchievements);
+            setGuestAchievements(parsed);
+            // Populate achievements state for display
+            const achList = parsed.map((type: string) =>
+              ACHIEVEMENT_DEFS.find(d => d.type === type)
+            ).filter(Boolean).map((def: any) => ({
+              id: def.type,
+              type: def.type,
+              title: def.title,
+              emoji: def.emoji,
+              unlockedAt: new Date().toISOString()
+            }));
+            setAchievements(achList);
+          } catch {}
         }
         setAuthLoading(false);
         return;
@@ -197,14 +189,13 @@ export default function HomePage() {
     }).catch(() => setAuthLoading(false));
   }, []);
 
-  // ---- Cleanup camera & audio on unmount ----
+  // ---- Cleanup camera on unmount ----
   useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
       }
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
   }, []);
 
@@ -219,12 +210,13 @@ export default function HomePage() {
   // ---- i18n ----
   const { t } = useTranslation(language);
 
-  // ---- Achievement key mapping ----
-  const achTitleKey: Record<string, string> = { first_scan: 'achFirstScan', scan_5: 'achExplorer', scan_10: 'achScientist', scan_20: 'achProfessor', quiz_perfect: 'achPerfectScore', puzzle_complete: 'achPuzzleMaster', listen_master: 'achGoodListener', chat_first: 'achChattyKid', feedback_given: 'achHelper' };
-  const achDescKey: Record<string, string> = { first_scan: 'achFirstScanDesc', scan_5: 'achExplorerDesc', scan_10: 'achScientistDesc', scan_20: 'achProfessorDesc', quiz_perfect: 'achPerfectScoreDesc', puzzle_complete: 'achPuzzleMasterDesc', listen_master: 'achGoodListenerDesc', chat_first: 'achChattyKidDesc', feedback_given: 'achHelperDesc' };
-
   // ---- Theme ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // ---- Achievement count (only count types defined in ACHIEVEMENT_DEFS) ----
+  const unlockedCount = ACHIEVEMENT_DEFS.filter(a =>
+    achievements.some(ach => ach.type === a.type)
+  ).length;
 
   // ==================== AUTH ====================
   const handleAuth = async (mode: 'login' | 'register') => {
@@ -326,25 +318,6 @@ export default function HomePage() {
     });
   }, []);
 
-  // ==================== TTS via API /api/speak ====================
-  const doPlayVoice = useCallback(async (result?: IdentifyResult) => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    const target = result || currentResult;
-    if (!target) return;
-    setIsSpeaking(true);
-    try {
-      const text = `${target.name}. ${target.description}. ${t('ttsFunFact', { fact: target.funFact })}`;
-      const res = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: voiceSettings.voice, speed: voiceSettings.speed }) });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url); audioRef.current = audio;
-      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
-      await audio.play();
-    } catch { setIsSpeaking(false); }
-  }, [currentResult, voiceSettings]);
-
   // ==================== IDENTIFY ====================
   const identifyingRef = useRef(false);
 
@@ -362,16 +335,19 @@ export default function HomePage() {
       if (user && user.id !== 'guest') {
         // Save to DB history
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated }) }).then(() => fetchHistory()).catch(() => {});
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
+        // Only unlock first_scan if not already unlocked
+        if (!achievements.some(ach => ach.type === 'first_scan')) {
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
+        }
       } else {
         // Guest: just save locally
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
         unlockGuestAchievement('first_scan');
       }
-      doPlayVoice(result);
+      speakBrowserTTS(result.name + '. ' + result.description + '. ' + t('ttsFunFact', { fact: result.funFact }));
     } catch { setError(t('couldNotIdentify')); }
     finally { setIsIdentifying(false); identifyingRef.current = false; }
-  }, [imageRotation, getRotatedImage, user, doPlayVoice]);
+  }, [imageRotation, getRotatedImage, user, t]);
 
   const captureAndIdentify = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -394,25 +370,7 @@ export default function HomePage() {
   }, [identifyImage]);
 
   // ==================== PLAY VOICE (for replay button) ====================
-  const playVoice = useCallback((result?: IdentifyResult) => { doPlayVoice(result); }, [doPlayVoice]);
 
-  const stopSpeaking = useCallback(() => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } setIsSpeaking(false); }, []);
-
-  const speakText = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    setIsSpeaking(true);
-    try {
-      const res = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: voiceSettings.voice, speed: voiceSettings.speed }) });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url); audioRef.current = audio;
-      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
-      await audio.play();
-    } catch { setIsSpeaking(false); }
-  }, [voiceSettings]);
 
   // ==================== HELPER: Pick Random History Item ====================
   const pickRandomHistoryItem = useCallback((excludeId?: string): HistoryItem | null => {
@@ -468,8 +426,7 @@ export default function HomePage() {
   // ==================== RESET ====================
   const resetView = useCallback(() => {
     setCapturedImage(null); setCurrentResult(null); setError(null); setImageRotation(0);
-    stopSpeaking();
-  }, [stopSpeaking]);
+  }, []);
 
   const resetHistory = async () => {
     if (user?.id !== 'guest') await fetch('/api/history', { method: 'DELETE' });
@@ -680,9 +637,9 @@ export default function HomePage() {
         } else {
           unlockGuestAchievement('puzzle_complete');
         }
-        speakText(t('ttsPuzzleComplete'));
+        speakBrowserTTS(t('ttsPuzzleComplete'));
       } else {
-        speakText(t('ttsPuzzleAlmost'));
+        speakBrowserTTS(t('ttsPuzzleAlmost'));
       }
     }
   };
@@ -897,23 +854,6 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="text-sm font-semibold mb-2 block">🎙️ {t('voice')} ({voiceSettings.voice})</label>
-              <div className="grid grid-cols-3 gap-1">
-                {API_VOICES.map(v => (
-                  <button key={v.id} onClick={() => { const newSettings = { ...voiceSettings, voice: v.id }; setVoiceSettings(newSettings); localStorage.setItem('voiceSettings', JSON.stringify(newSettings)); speakText('Hello! This is ' + v.label); }}
-                    className={`p-1.5 rounded-lg text-[10px] font-medium ${voiceSettings.voice === v.id ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : 'bg-gray-50 text-gray-600'}`}>
-                    {v.emoji} {v.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-semibold mb-1 block">⚡ {t('speed')}: {voiceSettings.speed.toFixed(2)}x</label>
-              <input type="range" min="0.5" max="1.5" step="0.05" value={voiceSettings.speed}
-                onChange={e => { const newSettings = { ...voiceSettings, speed: parseFloat(e.target.value) }; setVoiceSettings(newSettings); localStorage.setItem('voiceSettings', JSON.stringify(newSettings)); }}
-                className="w-full accent-purple-500" />
-            </div>
             {!user.isPro && (
               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
                 <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
@@ -969,7 +909,7 @@ export default function HomePage() {
                 <>
                   <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
                   <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                  <Btn icon={isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />} onClick={isSpeaking ? stopSpeaking : () => playVoice()} color="purple" />
+                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(currentResult!.name + '. ' + currentResult!.description + '. ' + t('ttsFunFact', { fact: currentResult!.funFact }))} color="purple" />
                 </>
               ) : cameraActive ? (
                 <>
@@ -1034,11 +974,6 @@ export default function HomePage() {
               )}
             </AnimatePresence>
 
-            {/* Speaking indicator */}
-            <AnimatePresence>{isSpeaking && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-1.5">
-              {[0, 1, 2].map(i => <motion.div key={i} animate={{ scaleY: [1, 1.8, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} className="w-1 h-3 bg-purple-400 rounded-full" />)}
-              <span className="text-xs text-purple-600 ml-1">{t('speaking')}</span>
-            </motion.div>}</AnimatePresence>
           </TabsContent>
 
           {/* ============ LEARN TAB ============ */}
@@ -1248,8 +1183,8 @@ export default function HomePage() {
 
               {/* Achievements */}
               <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({achievements.length}/{ACHIEVEMENT_DEFS.length})</h4>
-                <Progress value={(achievements.length / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
+                <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
                 <div className="grid grid-cols-3 gap-2">
                   {ACHIEVEMENT_DEFS.map(a => {
                     const unlocked = achievements.find(ach => ach.type === a.type);
@@ -1280,7 +1215,7 @@ export default function HomePage() {
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
                           <p className="text-sm font-medium truncate">{item.name}</p><p className="text-[10px] text-gray-400">{item.category}</p>
                         </div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakText(`${item.name}. ${item.description}`); }} />
+                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${item.name}. ${item.description}`); }} />
                         <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
                           <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
                         </button>
@@ -1340,4 +1275,7 @@ function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; on
     </Button>
   </motion.div>;
 }
+
+
+
 

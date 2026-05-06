@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
       create: {
         userId: user.id,
         type: 'feedback_given',
-        title: 'Helpful Friend',
-        emoji: '💬',
+        title: 'Helper',
+        emoji: '⭐',
       },
     });
 

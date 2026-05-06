@@ -40,10 +40,7 @@ const translations: Record<Lang, TranslationMap> = {
     settings: 'Settings',
     theme: 'Theme',
     languageLabel: 'Language',
-    voice: 'Voice',
-    speed: 'Speed',
     upgradeToPro: 'Upgrade to Pro',
-    unlockFeatures: 'Unlock all voices, themes & features!',
     upgrading: '⏳ Upgrading...',
     getPro: '🚀 Get Pro',
 
@@ -157,7 +154,6 @@ const translations: Record<Lang, TranslationMap> = {
     themeCandy: 'Candy',
 
     // Additional UI strings
-    speaking: 'Speaking...',
     learnPractice: 'Learn & Practice',
     listenChallengeTitle: 'Listen to the Word',
     correctAmazing: 'Correct! Amazing!',
@@ -225,10 +221,7 @@ const translations: Record<Lang, TranslationMap> = {
     settings: 'Pengaturan',
     theme: 'Tema',
     languageLabel: 'Bahasa',
-    voice: 'Suara',
-    speed: 'Kecepatan',
     upgradeToPro: 'Tingkatkan ke Pro',
-    unlockFeatures: 'Buka semua suara, tema & fitur!',
     upgrading: '⏳ Meningkatkan...',
     getPro: '🚀 Dapatkan Pro',
 
@@ -344,7 +337,6 @@ const translations: Record<Lang, TranslationMap> = {
     themeCandy: 'Permen',
 
     // Additional UI strings
-    speaking: 'Berbicara...',
     learnPractice: 'Belajar & Berlatih',
     listenChallengeTitle: 'Dengarkan Kata Ini',
     correctAmazing: 'Benar! Luar biasa!',
@@ -411,10 +403,7 @@ const translations: Record<Lang, TranslationMap> = {
     settings: '设置',
     theme: '主题',
     languageLabel: '语言',
-    voice: '语音',
-    speed: '语速',
     upgradeToPro: '升级到专业版',
-    unlockFeatures: '解锁所有语音、主题和功能！',
     upgrading: '⏳ 升级中...',
     getPro: '🚀 获取专业版',
 
@@ -522,7 +511,6 @@ const translations: Record<Lang, TranslationMap> = {
     themeCandy: '糖果',
 
     // Additional UI strings
-    speaking: '播放中...',
     learnPractice: '学习与练习',
     listenChallengeTitle: '听单词',
     correctAmazing: '正确！太棒了！',

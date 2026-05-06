@@ -9,7 +9,7 @@ const VALID_TYPES = [
   'scan_20',
   'quiz_perfect',
   'puzzle_complete',
-  'spell_master',
+  'listen_master',
   'chat_first',
   'feedback_given',
 ] as const;
@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check scan milestones on every achievement POST
+    await checkScanMilestones(user.id);
+
     // Check if already unlocked (idempotent)
     const existing = await db.achievement.findUnique({
       where: {
@@ -91,9 +94,6 @@ export async function POST(req: NextRequest) {
         emoji,
       },
     });
-
-    // Check scan milestones after saving
-    await checkScanMilestones(user.id);
 
     return NextResponse.json({ achievement }, { status: 201 });
   } catch (error) {
@@ -119,9 +119,9 @@ async function checkScanMilestones(userId: string) {
     title: string;
     emoji: string;
   }> = [
-    { count: 5, type: 'scan_5', title: 'Curious Explorer', emoji: '🔭' },
-    { count: 10, type: 'scan_10', title: 'Little Scientist', emoji: '🔬' },
-    { count: 20, type: 'scan_20', title: 'Discovery Master', emoji: '🏆' },
+    { count: 5, type: 'scan_5', title: 'Explorer', emoji: '🧭' },
+    { count: 10, type: 'scan_10', title: 'Scientist', emoji: '🔬' },
+    { count: 20, type: 'scan_20', title: 'Professor', emoji: '🎓' },
   ];
 
   for (const milestone of milestones) {
