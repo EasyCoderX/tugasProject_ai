@@ -69,6 +69,7 @@ const translations: Record<Lang, TranslationMap> = {
     discoveryLog: 'Discovery Log',
     historyEmpty: 'No discoveries yet. Start exploring!',
     clearHistory: 'Clear All',
+    confirmClearAll: 'Clear all history?',
 
     // Learn Tab
     learnTitle: 'Learn & Play',
@@ -248,6 +249,7 @@ const translations: Record<Lang, TranslationMap> = {
     discoveryLog: 'Log Penemuan',
     historyEmpty: 'Belum ada penemuan. Mulai menjelajah!',
     clearHistory: 'Hapus Semua',
+    confirmClearAll: 'Hapus semua riwayat?',
 
     // Learn Tab
     learnTitle: 'Belajar & Bermain',
@@ -426,6 +428,7 @@ const translations: Record<Lang, TranslationMap> = {
     discoveryLog: '发现记录',
     historyEmpty: '还没有发现，开始探索吧！',
     clearHistory: '清空全部',
+    confirmClearAll: '清空所有历史记录？',
 
     // Learn Tab
     learnTitle: '学习与游戏',

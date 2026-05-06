@@ -25,7 +25,7 @@ No test framework is configured. No tests exist.
 
 ### Single-Page Monolith
 
-The entire frontend lives in **one file**: `src/app/page.tsx` (~1093 lines, client component). All state is managed with `useState`/`useCallback`/`useRef`. UI is tab-based: Home (camera/identify), Learn (spelling), Games (quiz + puzzle), Chat (AI buddy), Profile (achievements/history/feedback). Two tiny helper components (`Btn`, `BigBtn`) are defined at the bottom of the same file.
+The entire frontend lives in **one file**: `src/app/page.tsx` (~1130 lines, client component). All state is managed with `useState`/`useCallback`/`useRef`. UI is tab-based: Home (camera/identify), Learn (spelling), Games (quiz + puzzle), Chat (AI buddy), Profile (achievements/history/feedback). Two tiny helper components (`Btn`, `BigBtn`) are defined at the bottom of the same file.
 
 **Key runtime dependencies not obvious from the stack list**: `framer-motion` (animations throughout page.tsx), `@dnd-kit/core` + `@dnd-kit/sortable` (puzzle game drag-and-drop).
 
@@ -41,6 +41,7 @@ All backend logic is in `src/app/api/` using Next.js App Router route handlers. 
 | `/api/chat` | AI chat | z-ai Chat (`glm-4-flash`) |
 | `/api/auth/*` | Register/login/logout/me/update/upgrade | Prisma SQLite |
 | `/api/history` | History CRUD | Prisma SQLite |
+| `/api/history/[id]` | Delete individual history item | Prisma SQLite |
 | `/api/achievements` | Achievement unlock + scan milestones | Prisma SQLite |
 | `/api/feedback` | Rating submission (1-5) | Prisma SQLite |
 | `/api/quiz` | Score save + perfect-score achievement | Prisma SQLite |
@@ -49,7 +50,7 @@ All backend logic is in `src/app/api/` using Next.js App Router route handlers. 
 
 - **`src/lib/auth.ts`** — Cookie-based sessions (`kidlearn_session`). Session is base64-encoded JSON with userId/username/displayName. Not encrypted or signed. httpOnly, 30-day maxAge. No Next.js middleware; auth is per-route.
 - **`src/lib/db.ts`** — Prisma singleton via `globalThis` pattern to avoid hot-reload connection issues. Query logging enabled (`log: ['query']`).
-- **`src/lib/i18n.ts`** — Flat-key i18n with 130+ keys × 3 languages. `useTranslation(lang)` returns `t(key, params?)`. Supports `{placeholder}` interpolation. Fallback chain: requested lang → English → raw key.
+- **`src/lib/i18n.ts`** — Flat-key i18n with 130+ keys × 3 languages. `useTranslation(lang)` returns `t(key, params?)`. Supports `{placeholder}` interpolation. Fallback chain: requested lang → English → raw key. Includes `confirmClearAll` key for history clear confirmation dialog.
 - **`src/lib/utils.ts`** — `cn()` helper (clsx + tailwind-merge).
 
 ### Data Flow
@@ -73,4 +74,5 @@ Camera capture → base64 image → `/api/identify` (VLM) → result (name/emoji
 - **ESLint**: Extremely permissive — 16+ rules disabled (no-explicit-any, no-unused-vars, etc.).
 - **`skills/` directory**: Contains 45+ Z.ai skill definitions. Not runtime code; ignored by gitignore and ESLint.
 - **Git commits**: UUID-based messages (agent-driven).
+- **No build**: Never run `npm run build` during development — dev server (`npm run dev`) is sufficient for testing changes.
 - **Unused dependencies**: `next-auth`, `next-intl`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table` are present in package.json but not actively used by the app. Auth is custom cookie-based, i18n is custom, state is useState-based.

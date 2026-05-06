@@ -404,6 +404,17 @@ export default function HomePage() {
     setHistory([]);
   };
 
+  const deleteHistoryItem = async (id: string) => {
+    if (user?.id !== 'guest') {
+      try {
+        await fetch(`/api/history/${id}`, { method: 'DELETE' });
+        fetchHistory();
+      } catch {}
+    } else {
+      setHistory(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
   // ==================== QUIZ ====================
   const startQuiz = useCallback(async () => {
     if (!currentResult) return;
@@ -1061,18 +1072,27 @@ export default function HomePage() {
               <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
-                  {history.length > 0 && <button onClick={resetHistory} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5"><Trash2 className="h-3 w-3" /> Clear</button>}
+                  {history.length > 0 && (
+                    <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
+                      <Trash2 className="h-3 w-3" /> Clear All
+                    </button>
+                  )}
                 </div>
                 {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
-                  <ScrollArea className="max-h-48">
+                  <div className="overflow-y-auto max-h-72">
                     <div className="space-y-1.5">{history.slice(0, 20).map(item => (
-                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
+                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
                         <span className="text-xl">{item.emoji}</span>
-                        <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{item.name}</p><p className="text-[10px] text-gray-400">{item.category}</p></div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400" onClick={e => { e.stopPropagation(); speakText(`${item.name}. ${item.description}`); }} />
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
+                          <p className="text-sm font-medium truncate">{item.name}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                        </div>
+                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakText(`${item.name}. ${item.description}`); }} />
+                        <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
+                          <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                        </button>
                       </div>
                     ))}</div>
-                  </ScrollArea>
+                  </div>
                 )}
               </CardContent></Card>
 
