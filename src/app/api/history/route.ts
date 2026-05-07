@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await req.json();
-    const { name, emoji, description, funFact, category, imageData } = body;
+    const { name, emoji, description, funFact, category, imageData, nameOptions } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         funFact: (funFact || '').slice(0, 500),
         category: (category || 'Other').slice(0, 50),
         imageData: trimmedImage,
+        nameOptions: nameOptions || undefined,
       },
     });
 

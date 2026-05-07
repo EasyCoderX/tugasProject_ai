@@ -9,6 +9,9 @@ interface IdentifyResponse {
   description: string;
   funFact: string;
   category: string;
+  nameEn?: string;
+  nameId?: string;
+  nameZh?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,6 +50,9 @@ Look at the image and identify the main object. Respond with ONLY a valid JSON o
 
 {
   "name": "simple name of the object in the specified language",
+  "nameEn": "simple name in English",
+  "nameId": "simple name in Indonesian (Bahasa Indonesia)",
+  "nameZh": "simple name in Simplified Chinese (简体中文)",
   "emoji": "one single emoji that best represents this object",
   "description": "1-2 very short, simple sentences explaining what this object is in the specified language. Use words a 4-year-old can understand. Keep under 40 words.",
   "funFact": "one amazing and easy-to-understand fact in the specified language that will make a child go WOW. Keep under 30 words.",
@@ -55,7 +61,10 @@ Look at the image and identify the main object. Respond with ONLY a valid JSON o
 
 Rules:
 - ALL text must be EXTREMELY simple — like talking to a 4-year-old
-- ALL text must be in the specified language
+- "name", "description", "funFact" must be in the specified language
+- "nameEn" MUST be in English
+- "nameId" MUST be in Bahasa Indonesia
+- "nameZh" MUST be in Simplified Chinese (简体中文)
 - This will be read aloud by a voice, so write naturally
 - Description: under 40 words
 - Fun fact: under 30 words, must be genuinely fun/surprising
@@ -129,9 +138,25 @@ Rules:
       description: result.description || 'I can see something interesting here!',
       funFact: result.funFact || 'Everything around us is interesting!',
       category: result.category || 'Other',
+      nameEn: result.nameEn,
+      nameId: result.nameId,
+      nameZh: result.nameZh,
     };
 
-    return NextResponse.json(result);
+    // Construct nameOptions from available names
+    const nameOptions: Record<string, string> = {};
+    if (result.nameEn) nameOptions['en'] = result.nameEn;
+    if (result.nameId) nameOptions['id'] = result.nameId;
+    if (result.nameZh) nameOptions['zh'] = result.nameZh;
+    // Ensure at least the main name is included for the requested language
+    if (language && !nameOptions[language]) {
+      nameOptions[language] = result.name;
+    }
+
+    return NextResponse.json({
+      ...result,
+      nameOptions,
+    });
   } catch (error) {
     console.error('Identify API Error:', error);
     let errorMessage = 'Something went wrong. Please try again!';

@@ -26,6 +26,7 @@ interface UserInfo {
 }
 interface IdentifyResult {
   name: string; emoji: string; description: string; funFact: string; category: string; warning?: string;
+  nameOptions?: { en?: string; id?: string; zh?: string };
 }
 interface HistoryItem extends IdentifyResult {
   id: string; timestamp: Date; imageData: string;
@@ -36,6 +37,12 @@ interface Achievement {
 interface ChatMessage {
   role: 'user' | 'assistant'; content: string;
 }
+
+function getNameInLang(item: { name: string; nameOptions?: { en?: string; id?: string; zh?: string } }, lang: string): string {
+  const opts = item.nameOptions;
+  return (opts && opts[lang]) || item.name;
+}
+
 const THEMES = [
   { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
   { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
@@ -334,7 +341,7 @@ export default function HomePage() {
       setCapturedImage(rotated); setImageRotation(0);
       if (user && user.id !== 'guest') {
         // Save to DB history
-        fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated }) }).then(() => fetchHistory()).catch(() => {});
+        fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions }) }).then(() => fetchHistory()).catch(() => {});
         // Only unlock first_scan if not already unlocked
         if (!achievements.some(ach => ach.type === 'first_scan')) {
           fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
@@ -344,7 +351,7 @@ export default function HomePage() {
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
         unlockGuestAchievement('first_scan');
       }
-      speakBrowserTTS(result.name + '. ' + result.description + '. ' + t('ttsFunFact', { fact: result.funFact }));
+      speakBrowserTTS(getNameInLang(result, language) + '. ' + result.description + '. ' + t('ttsFunFact', { fact: result.funFact }));
     } catch { setError(t('couldNotIdentify')); }
     finally { setIsIdentifying(false); identifyingRef.current = false; }
   }, [imageRotation, getRotatedImage, user, t]);
@@ -548,13 +555,13 @@ export default function HomePage() {
   const startListen = useCallback(() => {
     if (history.length === 0) return;
     const correctItem = history[Math.floor(Math.random() * history.length)];
-    const distrators = history.filter(h => h.name !== correctItem.name).sort(() => Math.random() - 0.5).slice(0, 3);
+    const distrators = history.filter(h => h.name !== getNameInLang(correctItem, language)).sort(() => Math.random() - 0.5).slice(0, 3);
     const options = [correctItem, ...distrators].sort(() => Math.random() - 0.5);
-    setListenWord(correctItem.name);
+    setListenWord(getNameInLang(correctItem, language));
     setListenOptions(options);
     setListenAnswer(null);
     setListenResult(null);
-    speakBrowserTTS(correctItem.name);
+    speakBrowserTTS(getNameInLang(correctItem, language));
   }, [history, speakBrowserTTS]);
 
   const answerListen = (itemName: string) => {
@@ -909,7 +916,7 @@ export default function HomePage() {
                 <>
                   <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
                   <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(currentResult!.name + '. ' + currentResult!.description + '. ' + t('ttsFunFact', { fact: currentResult!.funFact }))} color="purple" />
+                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + currentResult!.description + '. ' + t('ttsFunFact', { fact: currentResult!.funFact }))} color="purple" />
                 </>
               ) : cameraActive ? (
                 <>
@@ -952,7 +959,7 @@ export default function HomePage() {
                         <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{currentResult.name}</h2>
+                            <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{getNameInLang(currentResult, language)}</h2>
                             <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
                             {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
                           </div>
@@ -992,10 +999,10 @@ export default function HomePage() {
                     {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       {listenOptions.map((opt, i) => (
-                        <button key={i} onClick={() => answerListen(opt.name)} disabled={listenAnswer !== null}
-                          className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (opt.name === listenWord ? 'border-green-400 bg-green-50' : opt.name === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
-                          <img src={opt.imageData} alt={opt.name} className="w-full aspect-square object-cover" />
-                          <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {opt.name}</div>
+                        <button key={i} onClick={() => answerListen(getNameInLang(opt, language))} disabled={listenAnswer !== null}
+                          className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (getNameInLang(opt, language) === listenWord ? 'border-green-400 bg-green-50' : getNameInLang(opt, language) === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
+                          <img src={opt.imageData} alt={getNameInLang(opt, language)} className="w-full aspect-square object-cover" />
+                          <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {getNameInLang(opt, language)}</div>
                         </button>
                       ))}
                     </div>
@@ -1024,7 +1031,7 @@ export default function HomePage() {
                   <CardContent className="p-4">
                     <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                     {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
-                    {activeHistoryItem && <p className="text-xs text-gray-500 mb-1">{activeHistoryItem.emoji} {activeHistoryItem.name}</p>}
+                    {activeHistoryItem && <p className="text-xs text-gray-500 mb-1">{activeHistoryItem.emoji} {getNameInLang(activeHistoryItem, language)}</p>}
                     <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
                     {quizGenerating ? (
                       <div className="flex items-center justify-center py-6">
@@ -1213,9 +1220,9 @@ export default function HomePage() {
                       <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
                         <span className="text-xl">{item.emoji}</span>
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
-                          <p className="text-sm font-medium truncate">{item.name}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                          <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
                         </div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${item.name}. ${item.description}`); }} />
+                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${item.description}`); }} />
                         <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
                           <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
                         </button>
