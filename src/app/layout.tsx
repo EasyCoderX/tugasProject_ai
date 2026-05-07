@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "What's This? - AI Object Learning for Kids",
   description: "A fun, interactive app for kids to learn about objects using their device camera with AI-powered image recognition and voice feedback.",
   keywords: ["kids", "learning", "AI", "object recognition", "camera", "education", "children"],
-  authors: [{ name: "Z.ai Team" }],
+  authors: [{ name: "STAR Team" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
