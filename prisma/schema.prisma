@@ -36,6 +36,8 @@ model HistoryItem {
   category    String
   imageData   String
   nameOptions Json?
+  descriptionOptions Json?
+  funFactOptions Json?
   createdAt   DateTime @default(now())
 }
 

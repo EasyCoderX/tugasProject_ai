@@ -27,6 +27,8 @@ interface UserInfo {
 interface IdentifyResult {
   name: string; emoji: string; description: string; funFact: string; category: string; warning?: string;
   nameOptions?: { en?: string; id?: string; zh?: string };
+  descriptionOptions?: { en?: string; id?: string; zh?: string };
+  funFactOptions?: { en?: string; id?: string; zh?: string };
 }
 interface HistoryItem extends IdentifyResult {
   id: string; timestamp: Date; imageData: string;
@@ -41,6 +43,14 @@ interface ChatMessage {
 function getNameInLang(item: { name: string; nameOptions?: { en?: string; id?: string; zh?: string } }, lang: string): string {
   const opts = item.nameOptions;
   return (opts && opts[lang]) || item.name;
+}
+function getDescInLang(item: { description: string; descriptionOptions?: { en?: string; id?: string; zh?: string } }, lang: string): string {
+  const opts = item.descriptionOptions;
+  return (opts && opts[lang]) || item.description;
+}
+function getFactInLang(item: { funFact: string; funFactOptions?: { en?: string; id?: string; zh?: string } }, lang: string): string {
+  const opts = item.funFactOptions;
+  return (opts && opts[lang]) || item.funFact;
 }
 
 const THEMES = [
@@ -341,7 +351,7 @@ export default function HomePage() {
       setCapturedImage(rotated); setImageRotation(0);
       if (user && user.id !== 'guest') {
         // Save to DB history
-        fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions }) }).then(() => fetchHistory()).catch(() => {});
+        fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions, descriptionOptions: result.descriptionOptions, funFactOptions: result.funFactOptions }) }).then(() => fetchHistory()).catch(() => {});
         // Only unlock first_scan if not already unlocked
         if (!achievements.some(ach => ach.type === 'first_scan')) {
           fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
@@ -351,7 +361,7 @@ export default function HomePage() {
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
         unlockGuestAchievement('first_scan');
       }
-      speakBrowserTTS(getNameInLang(result, language) + '. ' + result.description + '. ' + t('ttsFunFact', { fact: result.funFact }));
+      speakBrowserTTS(getNameInLang(result, language) + '. ' + getDescInLang(result, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(result, language) }));
     } catch { setError(t('couldNotIdentify')); }
     finally { setIsIdentifying(false); identifyingRef.current = false; }
   }, [imageRotation, getRotatedImage, user, t]);
@@ -916,7 +926,7 @@ export default function HomePage() {
                 <>
                   <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
                   <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + currentResult!.description + '. ' + t('ttsFunFact', { fact: currentResult!.funFact }))} color="purple" />
+                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
                 </>
               ) : cameraActive ? (
                 <>
@@ -963,10 +973,10 @@ export default function HomePage() {
                             <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
                             {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
                           </div>
-                          <p className="text-sm text-gray-600">{currentResult.description}</p>
+                          <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
                           <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
                             <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
-                            <p className="text-xs text-yellow-800">{currentResult.funFact}</p>
+                            <p className="text-xs text-yellow-800">{getFactInLang(currentResult, language)}</p>
                           </div>
                           <div className="flex gap-2 mt-3">
                             <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
@@ -1222,7 +1232,7 @@ export default function HomePage() {
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
                           <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
                         </div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${item.description}`); }} />
+                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${getDescInLang(item, language)}`); }} />
                         <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
                           <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
                         </button>

@@ -12,6 +12,12 @@ interface IdentifyResponse {
   nameEn?: string;
   nameId?: string;
   nameZh?: string;
+  descriptionEn?: string;
+  descriptionId?: string;
+  descriptionZh?: string;
+  funFactEn?: string;
+  funFactId?: string;
+  funFactZh?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -55,16 +61,22 @@ Look at the image and identify the main object. Respond with ONLY a valid JSON o
   "nameZh": "simple name in Simplified Chinese (简体中文)",
   "emoji": "one single emoji that best represents this object",
   "description": "1-2 very short, simple sentences explaining what this object is in the specified language. Use words a 4-year-old can understand. Keep under 40 words.",
+  "descriptionEn": "description in English",
+  "descriptionId": "description in Indonesian (Bahasa Indonesia)",
+  "descriptionZh": "description in Simplified Chinese (简体中文)",
   "funFact": "one amazing and easy-to-understand fact in the specified language that will make a child go WOW. Keep under 30 words.",
+  "funFactEn": "fun fact in English",
+  "funFactId": "fun fact in Indonesian (Bahasa Indonesia)",
+  "funFactZh": "fun fact in Simplified Chinese (简体中文)",
   "category": "one of: Animals, Food, Toys, Vehicles, Plants, Electronics, Furniture, Clothing, Tools, Nature, Sports, Household, School, Music, Art, People, Other"
 }
 
 Rules:
 - ALL text must be EXTREMELY simple — like talking to a 4-year-old
 - "name", "description", "funFact" must be in the specified language
-- "nameEn" MUST be in English
-- "nameId" MUST be in Bahasa Indonesia
-- "nameZh" MUST be in Simplified Chinese (简体中文)
+- "nameEn", "descriptionEn", "funFactEn" MUST be in English
+- "nameId", "descriptionId", "funFactId" MUST be in Bahasa Indonesia
+- "nameZh", "descriptionZh", "funFactZh" MUST be in Simplified Chinese (简体中文)
 - This will be read aloud by a voice, so write naturally
 - Description: under 40 words
 - Fun fact: under 30 words, must be genuinely fun/surprising
@@ -141,6 +153,12 @@ Rules:
       nameEn: result.nameEn,
       nameId: result.nameId,
       nameZh: result.nameZh,
+      descriptionEn: result.descriptionEn,
+      descriptionId: result.descriptionId,
+      descriptionZh: result.descriptionZh,
+      funFactEn: result.funFactEn,
+      funFactId: result.funFactId,
+      funFactZh: result.funFactZh,
     };
 
     // Construct nameOptions from available names
@@ -148,14 +166,33 @@ Rules:
     if (result.nameEn) nameOptions['en'] = result.nameEn;
     if (result.nameId) nameOptions['id'] = result.nameId;
     if (result.nameZh) nameOptions['zh'] = result.nameZh;
-    // Ensure at least the main name is included for the requested language
     if (language && !nameOptions[language]) {
       nameOptions[language] = result.name;
+    }
+
+    // Construct descriptionOptions
+    const descriptionOptions: Record<string, string> = {};
+    if (result.descriptionEn) descriptionOptions['en'] = result.descriptionEn;
+    if (result.descriptionId) descriptionOptions['id'] = result.descriptionId;
+    if (result.descriptionZh) descriptionOptions['zh'] = result.descriptionZh;
+    if (language && !descriptionOptions[language]) {
+      descriptionOptions[language] = result.description;
+    }
+
+    // Construct funFactOptions
+    const funFactOptions: Record<string, string> = {};
+    if (result.funFactEn) funFactOptions['en'] = result.funFactEn;
+    if (result.funFactId) funFactOptions['id'] = result.funFactId;
+    if (result.funFactZh) funFactOptions['zh'] = result.funFactZh;
+    if (language && !funFactOptions[language]) {
+      funFactOptions[language] = result.funFact;
     }
 
     return NextResponse.json({
       ...result,
       nameOptions,
+      descriptionOptions,
+      funFactOptions,
     });
   } catch (error) {
     console.error('Identify API Error:', error);
