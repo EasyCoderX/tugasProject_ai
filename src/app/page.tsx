@@ -849,17 +849,19 @@ export default function HomePage() {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
-              <div className="grid grid-cols-3 gap-2">
-                {THEMES.map(tm => (
-                  <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
-                    className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
-                  </button>
-                ))}
+            {user?.isPro && (
+              <div>
+                <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {THEMES.map(tm => (
+                    <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
+                      className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                      {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
               <div className="flex gap-2">
@@ -1041,7 +1043,6 @@ export default function HomePage() {
                   <CardContent className="p-4">
                     <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                     {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
-                    {activeHistoryItem && <p className="text-xs text-gray-500 mb-1">{activeHistoryItem.emoji} {getNameInLang(activeHistoryItem, language)}</p>}
                     <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
                     {quizGenerating ? (
                       <div className="flex items-center justify-center py-6">

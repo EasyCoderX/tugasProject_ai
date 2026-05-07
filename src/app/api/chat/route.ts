@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const response = await withQueue(() => withRetry(async () => {
       const z = await ZAI.create();
       return await z.chat.completions.create({
-        model: 'glm-4.7-flash',
+        model: 'glm-4.5-flash',
         messages,
       });
     }));
