@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { THEMES } from '@/lib/themes';
 import {
   Camera, Volume2, VolumeX, RotateCcw, Sparkles, SwitchCamera, ImagePlus,
   Upload, Settings, Star, BookOpen, MessageCircle, Home, Gamepad2,
@@ -53,15 +54,6 @@ function getFactInLang(item: { funFact: string; funFactOptions?: { en?: string; 
   const opts = item.funFactOptions;
   return (opts && opts[lang]) || item.funFact;
 }
-
-const THEMES = [
-  { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
-  { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
-  { id: 'forest', name: 'Forest', emoji: '🌲', bg: 'from-green-50 via-emerald-50 to-lime-50', header: 'from-green-500 via-emerald-500 to-lime-500' },
-  { id: 'sunset', name: 'Sunset', emoji: '🌅', bg: 'from-orange-50 via-rose-50 to-pink-50', header: 'from-orange-500 via-rose-500 to-pink-500' },
-  { id: 'night', name: 'Night', emoji: '🌙', bg: 'from-slate-50 via-indigo-50 to-purple-50', header: 'from-slate-700 via-indigo-700 to-purple-700' },
-  { id: 'candy', name: 'Candy', emoji: '🍬', bg: 'from-pink-50 via-fuchsia-50 to-violet-50', header: 'from-pink-400 via-fuchsia-400 to-violet-400' },
-];
 
 const LANGUAGES = [
   { id: 'en', name: 'English', emoji: '🇬🇧' },
@@ -237,6 +229,13 @@ export default function HomePage() {
 
   // ---- Theme ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // Handle theme portal event from Sidebar
+  useEffect(() => {
+    const handler = () => setShowSettings(true);
+    window.addEventListener('open-theme-portal', handler);
+    return () => window.removeEventListener('open-theme-portal', handler);
+  }, []);
 
   // ---- Achievement count (only count types defined in ACHIEVEMENT_DEFS) ----
   const unlockedCount = ACHIEVEMENT_DEFS.filter(a =>
@@ -828,7 +827,7 @@ export default function HomePage() {
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`}>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }}>
       {/* Animated background decorations */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {Array.from({ length: 8 }).map((_, i) => (

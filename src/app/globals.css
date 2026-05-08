@@ -185,9 +185,18 @@
   --kid-gradient-from: #6366f1;
   --kid-gradient-to: #a855f7;
   --kid-shadow-color: rgba(99, 102, 241, 0.3);
-  --kid-card-bg: rgba(240, 242, 255, 0.92);
+  --kid-card-bg: rgba(15, 15, 30, 0.92);
   --kid-pattern-opacity: 0.1;
+  color: #f8fafc;
 }
+
+/* Night theme text color overrides for hardcoded gray classes */
+[data-theme="night"] .text-gray-800 { color: #f8fafc !important; }
+[data-theme="night"] .text-gray-700 { color: #e2e8f0 !important; }
+[data-theme="night"] .text-gray-600 { color: #cbd5e1 !important; }
+[data-theme="night"] .text-gray-500 { color: #94a3b8 !important; }
+[data-theme="night"] .text-gray-400 { color: #64748b !important; }
+[data-theme="night"] .text-gray-300 { color: #475569 !important; }
 
 /* Candy Kingdom */
 [data-theme="candy"] {

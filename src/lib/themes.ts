@@ -7,6 +7,7 @@ export interface ThemeConfig {
   // Expanded properties for immersive theming
   accent: string;
   accentHex: string;
+  textHex: string;
   cardStyle: 'bouncy' | 'flat' | 'raised' | 'wavy' | 'organic' | 'glow' | 'candy' | 'warm';
   buttonRadius: string;
   iconStyle: 'filled' | 'outlined' | 'cartoon';
@@ -27,6 +28,7 @@ export const THEMES: ThemeConfig[] = [
     header: 'from-orange-400 via-yellow-400 to-green-400',
     accent: 'orange',
     accentHex: '#fb923c',
+    textHex: '#1f2937',
     cardStyle: 'bouncy',
     buttonRadius: 'rounded-2xl',
     iconStyle: 'filled',
@@ -45,6 +47,7 @@ export const THEMES: ThemeConfig[] = [
     header: 'from-blue-500 via-cyan-500 to-teal-500',
     accent: 'blue',
     accentHex: '#3b82f6',
+    textHex: '#1f2937',
     cardStyle: 'wavy',
     buttonRadius: 'rounded-full',
     iconStyle: 'filled',
@@ -63,6 +66,7 @@ export const THEMES: ThemeConfig[] = [
     header: 'from-green-500 via-emerald-500 to-lime-500',
     accent: 'green',
     accentHex: '#22c55e',
+    textHex: '#1f2937',
     cardStyle: 'organic',
     buttonRadius: 'rounded-3xl',
     iconStyle: 'outlined',
@@ -81,6 +85,7 @@ export const THEMES: ThemeConfig[] = [
     header: 'from-orange-500 via-rose-500 to-pink-500',
     accent: 'rose',
     accentHex: '#f43f5e',
+    textHex: '#1f2937',
     cardStyle: 'warm',
     buttonRadius: 'rounded-2xl',
     iconStyle: 'filled',
@@ -95,10 +100,11 @@ export const THEMES: ThemeConfig[] = [
     id: 'night',
     name: 'Starry Night',
     emoji: '🌙',
-    bg: 'from-slate-50 via-indigo-50 to-purple-50',
+    bg: 'from-slate-900 via-indigo-950 to-purple-950',
     header: 'from-slate-700 via-indigo-700 to-purple-700',
     accent: 'indigo',
     accentHex: '#6366f1',
+    textHex: '#f8fafc',
     cardStyle: 'glow',
     buttonRadius: 'rounded-xl',
     iconStyle: 'cartoon',
@@ -117,6 +123,7 @@ export const THEMES: ThemeConfig[] = [
     header: 'from-pink-400 via-fuchsia-400 to-violet-400',
     accent: 'pink',
     accentHex: '#ec4899',
+    textHex: '#1f2937',
     cardStyle: 'candy',
     buttonRadius: 'rounded-full',
     iconStyle: 'cartoon',
