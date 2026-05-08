@@ -146,12 +146,18 @@ const translations: Record<Lang, TranslationMap> = {
       'Almost! Try rearranging the pieces.',
 
     // Theme names
-    themeDefault: 'Default',
-    themeOcean: 'Ocean',
-    themeForest: 'Forest',
-    themeSunset: 'Sunset',
-    themeNight: 'Night',
-    themeCandy: 'Candy',
+    themeRainbowGarden: 'Rainbow Garden',
+    themeOceanExplorer: 'Ocean Explorer',
+    themeEnchantedForest: 'Enchanted Forest',
+    themeSunsetSky: 'Sunset Sky',
+    themeStarryNight: 'Starry Night',
+    themeCandyKingdom: 'Candy Kingdom',
+
+    // Portal strings
+    chooseWorld: 'Choose Your World!',
+    enterWorld: 'Enter',
+    unlockWorld: 'Unlock',
+    tryProThemes: 'Try PRO Themes',
 
     // Additional UI strings
     learnPractice: 'Learn & Practice',
@@ -329,12 +335,18 @@ const translations: Record<Lang, TranslationMap> = {
       'Hampir! Coba susun ulang potongannya.',
 
     // Theme names
-    themeDefault: 'Default',
-    themeOcean: 'Lautan',
-    themeForest: 'Hutan',
-    themeSunset: 'Senja',
-    themeNight: 'Malam',
-    themeCandy: 'Permen',
+    themeRainbowGarden: 'Taman Pelangi',
+    themeOceanExplorer: 'Penjelajah Samudera',
+    themeEnchantedForest: 'Hutan Ajaib',
+    themeSunsetSky: 'Langit Senja',
+    themeStarryNight: 'Malam Berbintang',
+    themeCandyKingdom: 'Kerajaan Permen',
+
+    // Portal strings
+    chooseWorld: 'Pilih Duniamu!',
+    enterWorld: 'Masuk',
+    unlockWorld: 'Buka',
+    tryProThemes: 'Coba Tema PRO',
 
     // Additional UI strings
     learnPractice: 'Belajar & Berlatih',
@@ -503,12 +515,18 @@ const translations: Record<Lang, TranslationMap> = {
     ttsPuzzleAlmost: '差一点！试试重新排列拼图块。',
 
     // Theme names
-    themeDefault: '默认',
-    themeOcean: '海洋',
-    themeForest: '森林',
-    themeSunset: '日落',
-    themeNight: '夜晚',
-    themeCandy: '糖果',
+    themeRainbowGarden: '彩虹花园',
+    themeOceanExplorer: '海洋探险',
+    themeEnchantedForest: '魔法森林',
+    themeSunsetSky: '夕阳天空',
+    themeStarryNight: '星空之夜',
+    themeCandyKingdom: '糖果王国',
+
+    // Portal strings
+    chooseWorld: '选择你的世界！',
+    enterWorld: '进入',
+    unlockWorld: '解锁',
+    tryProThemes: '试试PRO主题',
 
     // Additional UI strings
     learnPractice: '学习与练习',

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,7 +14,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Sidebar from '@/components/Sidebar';
+import MobileTabBar from '@/components/MobileTabBar';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTranslation, type Lang } from '@/lib/i18n';
@@ -167,6 +168,13 @@ export default function HomePage() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Set data-theme attribute for CSS theming
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [theme]);
 
   // ---- Load user on mount ----
   useEffect(() => {
@@ -387,7 +395,6 @@ export default function HomePage() {
   }, [identifyImage]);
 
   // ==================== PLAY VOICE (for replay button) ====================
-
 
   // ==================== HELPER: Pick Random History Item ====================
   const pickRandomHistoryItem = useCallback((excludeId?: string): HistoryItem | null => {
@@ -821,455 +828,517 @@ export default function HomePage() {
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gradient-to-br ${currentTheme.bg}`}>
-      {/* Header */}
-      <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
-        <div className="relative max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
-              <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`}>
+      {/* Animated background decorations */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <motion.div
+            key={i}
+            animate={{
+              y: [0, -20 - Math.random() * 30, 0],
+              x: [0, (Math.random() - 0.5) * 40, 0],
+              rotate: [0, (Math.random() - 0.5) * 40, 0],
+            }}
+            transition={{
+              duration: 6 + Math.random() * 6,
+              repeat: Infinity,
+              delay: i * 0.8,
+              ease: "easeInOut",
+            }}
+            className="absolute text-2xl opacity-20"
+            style={{
+              top: `${10 + Math.random() * 80}%`,
+              left: `${5 + Math.random() * 90}%`,
+            }}
+          >
+            {currentTheme.emoji}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Sidebar - desktop only */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={currentTheme} user={user} />
+
+      {/* Main area (Header + Content + Footer) */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
+          <div className="relative max-w-2xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
+              <div>
+                <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
+                <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
+              <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
-            <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            {user?.isPro && (
+        {/* Settings Dialog */}
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              {user?.isPro && (
+                <div>
+                  <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {THEMES.map(tm => (
+                      <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
+                        className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
-                <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {THEMES.map(tm => (
-                    <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
-                      className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                      {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
+                <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
+                <div className="flex gap-2">
+                  {LANGUAGES.map(l => (
+                    <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
+                      className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                      {l.emoji} {l.name}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-            <div>
-              <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
-              <div className="flex gap-2">
-                {LANGUAGES.map(l => (
-                  <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
-                    className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    {l.emoji} {l.name}
-                  </button>
-                ))}
-              </div>
+              {!user.isPro && (
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
+                  <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
+                  <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
+                  <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
+                </div>
+              )}
             </div>
-            {!user.isPro && (
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
-                <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
-                <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
-                <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
-                <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-3 flex flex-col gap-3 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-          <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-white/80 shadow-sm p-1 mb-2">
-            <TabsTrigger value="home" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-yellow-400 data-[state=active]:text-white"><Home className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('home')}</span></TabsTrigger>
-            <TabsTrigger value="learn" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-400 data-[state=active]:text-white"><BookOpen className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('learn')}</span></TabsTrigger>
-            <TabsTrigger value="games" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"><Gamepad2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('games')}</span></TabsTrigger>
-            <TabsTrigger value="chat" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('chat')}</span></TabsTrigger>
-            <TabsTrigger value="profile" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-red-400 data-[state=active]:text-white"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('me')}</span></TabsTrigger>
-          </TabsList>
-
-          {/* ============ HOME TAB ============ */}
-          <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pb-2">
-            {/* Camera View */}
-            <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black aspect-[4/3] max-h-[45vh]">
-              <video ref={videoRef} playsInline muted autoPlay
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`} />
-              <AnimatePresence>
-                {showCaptured && (
-                  <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    src={capturedImage!} alt="Captured" className="absolute inset-0 w-full h-full object-contain z-20 bg-black"
-                    style={{ transform: `rotate(${imageRotation}deg)` }} />
+        {/* Main Content - responsive width */}
+        <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 flex flex-col gap-4 overflow-hidden relative z-10">
+          {/* Home Tab */}
+          {activeTab === 'home' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+            >
+              {/* Camera View */}
+              <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black aspect-[4/3] max-h-[45vh]">
+                <video ref={videoRef} playsInline muted autoPlay
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`} />
+                <AnimatePresence>
+                  {showCaptured && (
+                    <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      src={capturedImage!} alt="Captured" className="absolute inset-0 w-full h-full object-contain z-20 bg-black"
+                      style={{ transform: `rotate(${imageRotation}deg)` }} />
+                  )}
+                </AnimatePresence>
+                {showPlaceholder && (
+                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
+                    <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
+                    <p className="text-sm font-bold text-center">{t('readyToExplore')}</p>
+                    <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
+                  </div>
                 )}
-              </AnimatePresence>
-              {showPlaceholder && (
-                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
-                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
-                  <p className="text-sm font-bold text-center">{t('readyToExplore')}</p>
-                  <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
-                </div>
-              )}
-              {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
-              {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
-              {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
+                {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
+                {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
+                {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-center gap-3">
-              {capturedImage && currentResult ? (
-                <>
-                  <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
-                  <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
-                </>
-              ) : cameraActive ? (
-                <>
-                  <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={switchCamera} color="white" />
-                  <BigBtn onClick={captureAndIdentify} disabled={isIdentifying}>📷</BigBtn>
-                  <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={() => fileInputRef.current?.click()} color="white" />
-                </>
-              ) : (
-                <div className="flex items-center gap-3">
-                  {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
-                  <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
-                </div>
-              )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
-                stopCamera(); setCameraActive(false); setImageRotation(0);
-                const img = new Image();
-                img.onload = () => {
-                  const aspect = 4/3;
-                  const imgAspect = img.width / img.height;
-                  let sx = 0, sy = 0, sw = img.width, sh = img.height;
-                  if (imgAspect > aspect) { sw = sh * aspect; sx = (img.width - sw) / 2; }
-                  else { sh = sw / aspect; sy = (img.height - sh) / 2; }
-                  const c = document.createElement('canvas');
-                  c.width = sw; c.height = sh;
-                  c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-                  identifyImage(c.toDataURL('image/jpeg', 0.8));
-                };
-                img.src = r.result as string;
-              }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
-            </div>
+              {/* Action Buttons */}
+              <div className="flex items-center justify-center gap-3">
+                {capturedImage && currentResult ? (
+                  <>
+                    <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
+                    <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
+                    <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
+                  </>
+                ) : cameraActive ? (
+                  <>
+                    <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={switchCamera} color="white" />
+                    <BigBtn onClick={captureAndIdentify} disabled={isIdentifying}>📷</BigBtn>
+                    <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={() => fileInputRef.current?.click()} color="white" />
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
+                    <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
+                  stopCamera(); setCameraActive(false); setImageRotation(0);
+                  const img = new Image();
+                  img.onload = () => {
+                    const aspect = 4/3;
+                    const imgAspect = img.width / img.height;
+                    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+                    if (imgAspect > aspect) { sw = sh * aspect; sx = (img.width - sw) / 2; }
+                    else { sh = sw / aspect; sy = (img.height - sh) / 2; }
+                    const c = document.createElement('canvas');
+                    c.width = sw; c.height = sh;
+                    c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+                    identifyImage(c.toDataURL('image/jpeg', 0.8));
+                  };
+                  img.src = r.result as string;
+                }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
+              </div>
 
-            {/* Result Card */}
-            <AnimatePresence>
-              {currentResult && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
-                  <Card className="border-2 border-yellow-200 bg-white/90 shadow-xl overflow-hidden">
-                    <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{getNameInLang(currentResult, language)}</h2>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
-                            {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
-                          </div>
-                          <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
-                          <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
-                            <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
-                            <p className="text-xs text-yellow-800">{getFactInLang(currentResult, language)}</p>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
-                            <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
-                            <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
+              {/* Result Card */}
+              <AnimatePresence>
+                {currentResult && (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
+                    <Card className={`card-style-${currentTheme.cardStyle} overflow-hidden`}>
+                      <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{getNameInLang(currentResult, language)}</h2>
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
+                              {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
+                            </div>
+                            <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
+                            <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
+                              <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
+                              <p className="text-xs text-yellow-800">{getFactInLang(currentResult, language)}</p>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
+                              <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
+                              <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
 
-          </TabsContent>
+          {/* Learn Tab */}
+          {activeTab === 'learn' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+            >
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
 
-          {/* ============ LEARN TAB ============ */}
-          <TabsContent value="learn" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
-
-              {/* Listen and Pick */}
-              {listenWord && listenOptions.length > 0 ? (
-                <Card className="border-2 border-green-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
-                    <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
-                    <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
-                    {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
-                    {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {listenOptions.map((opt, i) => (
-                        <button key={i} onClick={() => answerListen(getNameInLang(opt, language))} disabled={listenAnswer !== null}
-                          className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (getNameInLang(opt, language) === listenWord ? 'border-green-400 bg-green-50' : getNameInLang(opt, language) === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
-                          <img src={opt.imageData} alt={getNameInLang(opt, language)} className="w-full aspect-square object-cover" />
-                          <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {getNameInLang(opt, language)}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
-                      <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-gray-200 bg-white/60"><CardContent className="p-4 text-center text-gray-400 text-sm">
-                  {t('identifyFirstListen')}
-                </CardContent></Card>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* ============ GAMES TAB ============ */}
-          <TabsContent value="games" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
-
-              {/* Quiz */}
-              {quizActive ? (
-                <Card className="border-2 border-green-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
-                    {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
-                    <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
-                    {quizGenerating ? (
-                      <div className="flex items-center justify-center py-6">
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-6 w-6 text-green-400" /></motion.div>
-                        <span className="ml-2 text-sm text-gray-500">{t('generating') || 'Generating options...'}</span>
-                      </div>
-                    ) : quizOptions.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {quizOptions.map((opt, i) => (
-                          <button key={i} onClick={() => answerQuiz(opt)}
-                            className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
-                            {opt}
+                {/* Listen and Pick */}
+                {listenWord && listenOptions.length > 0 ? (
+                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                    <CardContent className="p-4">
+                      <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
+                      <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
+                      <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
+                      {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
+                      {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {listenOptions.map((opt, i) => (
+                          <button key={i} onClick={() => answerListen(getNameInLang(opt, language))} disabled={listenAnswer !== null}
+                            className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (getNameInLang(opt, language) === listenWord ? 'border-green-400 bg-green-50' : getNameInLang(opt, language) === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
+                            <img src={opt.imageData} alt={getNameInLang(opt, language)} className="w-full aspect-square object-cover" />
+                            <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {getNameInLang(opt, language)}</div>
                           </button>
                         ))}
                       </div>
-                    ) : null}
-                    {/* Reveal Answer button - shown after answering but before reveal */}
-                    {quizAnswer && !quizRevealed && (
-                      <div className="mt-3 flex gap-2 justify-center">
-                        <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
-                          {t('revealAnswer') || 'Reveal Answer'}
-                        </button>
-                        <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
-                          {t('tryAnother') || 'Try Another Question'}
-                        </button>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
+                        <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
                       </div>
-                    )}
-                    {/* Result shown after revealing */}
-                    {showQuizResult && quizRevealed && (
-                      <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                        {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
-                        <div className="mt-2">
-                          <button onClick={startQuiz} className="text-xs underline">
-                            {quizScore.score === 1 ? (t('nextQuestion') || 'Next Question') : (t('tryAnother') || 'Try Another Question')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className={`card-style-${currentTheme.cardStyle} opacity-60`}><CardContent className="p-4 text-center text-gray-400 text-sm">
+                    {t('identifyFirstListen')}
+                  </CardContent></Card>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Games Tab */}
+          {activeTab === 'games' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+            >
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
+
+                {/* Quiz */}
+                {quizActive ? (
+                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                    <CardContent className="p-4">
+                      <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
+                      {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
+                      <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
+                      {quizGenerating ? (
+                        <div className="flex items-center justify-center py-6">
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-6 w-6 text-green-400" /></motion.div>
+                          <span className="ml-2 text-sm text-gray-500">{t('generating') || 'Generating options...'}</span>
+                        </div>
+                      ) : quizOptions.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {quizOptions.map((opt, i) => (
+                            <button key={i} onClick={() => answerQuiz(opt)}
+                              className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      {/* Reveal Answer button - shown after answering but before reveal */}
+                      {quizAnswer && !quizRevealed && (
+                        <div className="mt-3 flex gap-2 justify-center">
+                          <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
+                            {t('revealAnswer') || 'Reveal Answer'}
+                          </button>
+                          <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
+                            {t('tryAnother') || 'Try Another Question'}
                           </button>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="text-3xl">🧠</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </CardContent>
-                </Card>
-              )}
+                      )}
+                      {/* Result shown after revealing */}
+                      {showQuizResult && quizRevealed && (
+                        <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
+                          <div className="mt-2">
+                            <button onClick={startQuiz} className="text-xs underline">
+                              {quizScore.score === 1 ? (t('nextQuestion') || 'Next Question') : (t('tryAnother') || 'Try Another Question')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className={`card-style-${currentTheme.cardStyle} cursor-pointer hover:shadow-md transition-shadow`} onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="text-3xl">🧠</div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </CardContent>
+                  </Card>
+                )}
 
-              {/* Puzzle */}
-              {puzzleActive ? (
-                <Card className="border-2 border-purple-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">{t('puzzleChallenge')}</h4>
-                      <div className="flex items-center gap-2">
-                        {history.length > 1 && (
-                          <button onClick={() => {
-                            const newItem = pickRandomHistoryItem(puzzleHistoryItem?.id || activeHistoryItem?.id);
-                            if (newItem) {
-                              setPuzzleHistoryItem(newItem);
-                              setPuzzleActive(false);
-                              setTimeout(() => startPuzzle(), 0);
-                            }
-                          }} className="text-xs text-purple-600 hover:underline">
+                {/* Puzzle */}
+                {puzzleActive ? (
+                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold">{t('puzzleChallenge')}</h4>
+                        <div className="flex items-center gap-2">
+                          {history.length > 1 && (
+                            <button onClick={() => {
+                              const newItem = pickRandomHistoryItem(puzzleHistoryItem?.id || activeHistoryItem?.id);
+                              if (newItem) {
+                                setPuzzleHistoryItem(newItem);
+                                setPuzzleActive(false);
+                                setTimeout(() => startPuzzle(), 0);
+                              }
+                            }} className="text-xs text-purple-600 hover:underline">
                             {t('newImage') || 'New Image'}
                           </button>
-                        )}
-                        <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); setPuzzleHistoryItem(null); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
-                      </div>
-                    </div>
-                    {puzzlePieceWidth > 0 && (
-                    <div className="grid grid-cols-2 gap-1.5 mb-3">
-                      {puzzleSlots.map((piece, i) => (
-                        <div key={i} onClick={() => placePiece(i)}
-                          className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
-                          style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
-                          {!piece && <span className="text-gray-300 text-xl">+</span>}
+                          )}
+                          <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); setPuzzleHistoryItem(null); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
                         </div>
-                      ))}
-                    </div>
-                    )}
-                    {/* Puzzle result feedback */}
-                    {puzzleResult && (
-                      <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
-                        <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
-                        <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
-                          {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
-                        </p>
                       </div>
-                    )}
-                    {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
-                    {puzzlePieceWidth > 0 && (
-                    <div className="grid grid-cols-4 gap-1.5 mt-2">
-                      {puzzlePieces.map((piece, i) => (
-                        <div key={i} onClick={() => setSelectedPiece(i)}
-                          className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
-                          style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
-                      ))}
-                    </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="text-3xl">🧩</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* ============ CHAT TAB ============ */}
-          <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col pb-2">
-            <div className="flex-1 min-h-0 flex flex-col bg-white/60 rounded-2xl shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2 p-3 border-b border-gray-100">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
-                <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
-              </div>
-              <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
-                <div className="space-y-2">
-                  {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
-                  {chatMessages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                        {m.content}
+                      {puzzlePieceWidth > 0 && (
+                      <div className="grid grid-cols-2 gap-1.5 mb-3">
+                        {puzzleSlots.map((piece, i) => (
+                          <div key={i} onClick={() => placePiece(i)}
+                            className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
+                            style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
+                            {!piece && <span className="text-gray-300 text-xl">+</span>}
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
-                  {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">{t('chatThinking')}</div></div>}
-                </div>
-              </ScrollArea>
-              <div className="flex gap-2 p-2 border-t border-gray-100">
-                <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
-                <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ============ PROFILE TAB ============ */}
-          <TabsContent value="profile" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              {/* User Info */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4 flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
-                  <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
-                  {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
-                </div>
-              </CardContent></Card>
-
-              {/* Achievements */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
-                <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
-                <div className="grid grid-cols-3 gap-2">
-                  {ACHIEVEMENT_DEFS.map(a => {
-                    const unlocked = achievements.find(ach => ach.type === a.type);
-                    return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={a.desc}>
-                      <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
-                      <p className="text-[10px] font-medium mt-1">{a.title}</p>
-                      <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
-                    </div>;
-                  })}
-                </div>
-              </CardContent></Card>
-
-              {/* History */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
-                  {history.length > 0 && (
-                    <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
-                      <Trash2 className="h-3 w-3" /> Clear All
-                    </button>
-                  )}
-                </div>
-                {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
-                  <div className="overflow-y-auto max-h-72">
-                    <div className="space-y-1.5">{history.slice(0, 20).map(item => (
-                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
-                        <span className="text-xl">{item.emoji}</span>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
-                          <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                      )}
+                      {/* Puzzle result feedback */}
+                      {puzzleResult && (
+                        <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
+                          <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
+                          <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
+                            {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
+                          </p>
                         </div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${getDescInLang(item, language)}`); }} />
-                        <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
-                          <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
-                        </button>
+                      )}
+                      {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
+                      {puzzlePieceWidth > 0 && (
+                      <div className="grid grid-cols-4 gap-1.5 mt-2">
+                        {puzzlePieces.map((piece, i) => (
+                          <div key={i} onClick={() => setSelectedPiece(i)}
+                            className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
+                            style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
+                        ))}
                       </div>
-                    ))}</div>
-                  </div>
-                )}
-              </CardContent></Card>
-
-              {/* Feedback */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
-                {feedbackSent ? (
-                  <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
+                      )}
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-500">How do you like this app?</p>
-                    <div className="flex gap-1">{[1, 2, 3, 4, 5].map(s => (
-                      <button key={s} onClick={() => setFeedbackRating(s)} className={`text-2xl transition-transform hover:scale-125 ${s <= feedbackRating ? '' : 'grayscale opacity-40'}`}>
-                        {s <= feedbackRating ? '⭐' : '☆'}
-                      </button>
-                    ))}</div>
-                    <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
-                    <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
-                  </div>
+                  <Card className={`card-style-${currentTheme.cardStyle} cursor-pointer hover:shadow-md transition-shadow`} onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="text-3xl">🧩</div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent></Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+              </div>
+            </motion.div>
+          )}
 
-      {/* Footer */}
-      <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
-        <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
-      </footer>
+          {/* Chat Tab */}
+          {activeTab === 'chat' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+            >
+              <div className={`flex-1 min-h-0 flex flex-col card-style-${currentTheme.cardStyle} overflow-hidden`}>
+                <div className="flex items-center gap-2 p-3 border-b border-gray-100">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
+                  <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
+                </div>
+                <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
+                  <div className="space-y-2">
+                    {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
+                    {chatMessages.map((m, i) => (
+                      <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">{t('chatThinking')}</div></div>}
+                  </div>
+                </ScrollArea>
+                <div className="flex gap-2 p-2 border-t border-gray-100">
+                  <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
+                  <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+            >
+              <div className="space-y-4">
+                {/* User Info */}
+                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
+                    <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
+                    {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
+                  </div>
+                </CardContent></Card>
+
+                {/* Achievements */}
+                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
+                  <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {ACHIEVEMENT_DEFS.map(a => {
+                      const unlocked = achievements.find(ach => ach.type === a.type);
+                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={a.desc}>
+                        <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
+                        <p className="text-[10px] font-medium mt-1">{a.title}</p>
+                        <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
+                      </div>;
+                    })}
+                  </div>
+                </CardContent></Card>
+
+                {/* History */}
+                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
+                    {history.length > 0 && (
+                      <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
+                        <Trash2 className="h-3 w-3" /> Clear All
+                      </button>
+                    )}
+                  </div>
+                  {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
+                    <div className="overflow-y-auto max-h-72">
+                      <div className="space-y-1.5">{history.slice(0, 20).map(item => (
+                        <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
+                          <span className="text-xl">{item.emoji}</span>
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
+                            <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                          </div>
+                          <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${getDescInLang(item, language)}`); }} />
+                          <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
+                            <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                          </button>
+                        </div>
+                      ))}</div>
+                    </div>
+                  )}
+                </CardContent></Card>
+
+                {/* Feedback */}
+                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
+                  {feedbackSent ? (
+                    <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-500">How do you like this app?</p>
+                      <div className="flex gap-1">{[1, 2, 3, 4, 5].map(s => (
+                        <button key={s} onClick={() => setFeedbackRating(s)} className={`text-2xl transition-transform hover:scale-125 ${s <= feedbackRating ? '' : 'grayscale opacity-40'}`}>
+                          {s <= feedbackRating ? '⭐' : '☆'}
+                        </button>
+                      ))}</div>
+                      <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
+                      <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
+                    </div>
+                  )}
+                </CardContent></Card>
+              </div>
+            </motion.div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
+          <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
+        </footer>
+      </div>
+
+      {/* Mobile Tab Bar - mobile only */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={currentTheme} language={language} />
+      </div>
     </div>
   );
 }
@@ -1293,7 +1362,3 @@ function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; on
     </Button>
   </motion.div>;
 }
-
-
-
-
