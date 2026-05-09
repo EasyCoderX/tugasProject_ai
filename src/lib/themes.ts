@@ -22,7 +22,7 @@ export interface ThemeConfig {
 export const THEMES: ThemeConfig[] = [
   {
     id: 'default',
-    name: 'Rainbow Garden',
+    name: 'Luminous Meadow',
     emoji: '🌈',
     bg: 'from-orange-50 via-yellow-50 to-green-50',
     header: 'from-orange-400 via-yellow-400 to-green-400',
@@ -41,7 +41,7 @@ export const THEMES: ThemeConfig[] = [
   },
   {
     id: 'ocean',
-    name: 'Ocean Explorer',
+    name: 'Coral Dreams',
     emoji: '🌊',
     bg: 'from-blue-50 via-cyan-50 to-teal-50',
     header: 'from-blue-500 via-cyan-500 to-teal-500',
@@ -60,7 +60,7 @@ export const THEMES: ThemeConfig[] = [
   },
   {
     id: 'forest',
-    name: 'Enchanted Forest',
+    name: 'Whispering Woods',
     emoji: '🌲',
     bg: 'from-green-50 via-emerald-50 to-lime-50',
     header: 'from-green-500 via-emerald-500 to-lime-500',
@@ -79,7 +79,7 @@ export const THEMES: ThemeConfig[] = [
   },
   {
     id: 'sunset',
-    name: 'Sunset Sky',
+    name: 'Golden Hour',
     emoji: '🌅',
     bg: 'from-orange-50 via-rose-50 to-pink-50',
     header: 'from-orange-500 via-rose-500 to-pink-500',
@@ -98,7 +98,7 @@ export const THEMES: ThemeConfig[] = [
   },
   {
     id: 'night',
-    name: 'Starry Night',
+    name: 'Twilight Reverie',
     emoji: '🌙',
     bg: 'from-slate-900 via-indigo-950 to-purple-950',
     header: 'from-slate-700 via-indigo-700 to-purple-700',
@@ -117,7 +117,7 @@ export const THEMES: ThemeConfig[] = [
   },
   {
     id: 'candy',
-    name: 'Candy Kingdom',
+    name: 'Sugar Paradise',
     emoji: '🍬',
     bg: 'from-pink-50 via-fuchsia-50 to-violet-50',
     header: 'from-pink-400 via-fuchsia-400 to-violet-400',

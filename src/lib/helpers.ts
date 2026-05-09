@@ -55,15 +55,15 @@ export const LANGUAGES = [
 ];
 
 export const ACHIEVEMENT_DEFS = [
-  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍', desc: 'Identify your very first object' },
-  { type: 'scan_5', title: 'Explorer', emoji: '🧭', desc: 'Identify 5 different objects' },
-  { type: 'scan_10', title: 'Scientist', emoji: '🔬', desc: 'Identify 10 different objects' },
-  { type: 'scan_20', title: 'Professor', emoji: '🎓', desc: 'Identify 20 different objects' },
-  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯', desc: 'Get a perfect score on a quiz' },
-  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩', desc: 'Complete a puzzle correctly' },
-  { type: 'listen_master', title: 'Good Listener', emoji: '👂', desc: 'Listen and identify an object correctly' },
-  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬', desc: 'Send your first chat message' },
-  { type: 'feedback_given', title: 'Helper', emoji: '⭐', desc: 'Submit app feedback' },
+  { type: 'first_scan', emoji: '🔍', titleKey: 'achFirstScan', descKey: 'achFirstScanDesc' },
+  { type: 'scan_5', emoji: '🧭', titleKey: 'achExplorer', descKey: 'achExplorerDesc' },
+  { type: 'scan_10', emoji: '🔬', titleKey: 'achScientist', descKey: 'achScientistDesc' },
+  { type: 'scan_20', emoji: '🎓', titleKey: 'achProfessor', descKey: 'achProfessorDesc' },
+  { type: 'quiz_perfect', emoji: '💯', titleKey: 'achPerfectScore', descKey: 'achPerfectScoreDesc' },
+  { type: 'puzzle_complete', emoji: '🧩', titleKey: 'achPuzzleMaster', descKey: 'achPuzzleMasterDesc' },
+  { type: 'listen_master', emoji: '👂', titleKey: 'achGoodListener', descKey: 'achGoodListenerDesc' },
+  { type: 'chat_first', emoji: '💬', titleKey: 'achChattyKid', descKey: 'achChattyKidDesc' },
+  { type: 'feedback_given', emoji: '⭐', titleKey: 'achHelper', descKey: 'achHelperDesc' },
 ];
 
 export function getNameInLang(

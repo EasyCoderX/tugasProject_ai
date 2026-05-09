@@ -146,12 +146,12 @@ const translations: Record<Lang, TranslationMap> = {
       'Almost! Try rearranging the pieces.',
 
     // Theme names
-    themeRainbowGarden: 'Rainbow Garden',
-    themeOceanExplorer: 'Ocean Explorer',
-    themeEnchantedForest: 'Enchanted Forest',
-    themeSunsetSky: 'Sunset Sky',
-    themeStarryNight: 'Starry Night',
-    themeCandyKingdom: 'Candy Kingdom',
+    themeLuminousMeadow: 'Luminous Meadow',
+    themeCoralDreams: 'Coral Dreams',
+    themeWhisperingWoods: 'Whispering Woods',
+    themeGoldenHour: 'Golden Hour',
+    themeTwilightReverie: 'Twilight Reverie',
+    themeSugarParadise: 'Sugar Paradise',
 
     // Portal strings
     chooseWorld: 'Choose Your World!',
@@ -338,12 +338,12 @@ const translations: Record<Lang, TranslationMap> = {
       'Hampir! Coba susun ulang potongannya.',
 
     // Theme names
-    themeRainbowGarden: 'Taman Pelangi',
-    themeOceanExplorer: 'Penjelajah Samudera',
-    themeEnchantedForest: 'Hutan Ajaib',
-    themeSunsetSky: 'Langit Senja',
-    themeStarryNight: 'Malam Berbintang',
-    themeCandyKingdom: 'Kerajaan Permen',
+    themeLuminousMeadow: 'Padang Cahaya',
+    themeCoralDreams: 'Impian Karang',
+    themeWhisperingWoods: 'Hutan Bisikan',
+    themeGoldenHour: 'Jam Emas',
+    themeTwilightReverie: 'Senja Impian',
+    themeSugarParadise: 'Surga Gula',
 
     // Portal strings
     chooseWorld: 'Pilih Duniamu!',
@@ -521,12 +521,12 @@ const translations: Record<Lang, TranslationMap> = {
     ttsPuzzleAlmost: '差一点！试试重新排列拼图块。',
 
     // Theme names
-    themeRainbowGarden: '彩虹花园',
-    themeOceanExplorer: '海洋探险',
-    themeEnchantedForest: '魔法森林',
-    themeSunsetSky: '夕阳天空',
-    themeStarryNight: '星空之夜',
-    themeCandyKingdom: '糖果王国',
+    themeLuminousMeadow: '光之草原',
+    themeCoralDreams: '珊瑚梦境',
+    themeWhisperingWoods: '低语森林',
+    themeGoldenHour: '黄金时刻',
+    themeTwilightReverie: '暮光幻想',
+    themeSugarParadise: '甜蜜天堂',
 
     // Portal strings
     chooseWorld: '选择你的世界！',

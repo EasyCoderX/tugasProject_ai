@@ -140,11 +140,11 @@ export default function ProfileTab({
                       transition={{ delay: i * 0.05 }}
                       className={`p-3 rounded-2xl text-center transition-all cursor-default
                         ${unlocked ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-gray-50 border-2 border-gray-100 opacity-50'}`}
-                      title={a.desc}
+                      title={t(a.descKey)}
                     >
                       <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
-                      <p className="text-[10px] font-medium mt-1 font-fredoka">{a.title}</p>
-                      <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
+                      <p className="text-[10px] font-medium mt-1 font-fredoka">{t(a.titleKey)}</p>
+                      <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{t(a.descKey)}</p>
                     </motion.div>
                   );
                 })}

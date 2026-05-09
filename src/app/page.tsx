@@ -65,15 +65,15 @@ const LANGUAGES = [
 ];
 
 const ACHIEVEMENT_DEFS = [
-  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍', desc: 'Identify your very first object' },
-  { type: 'scan_5', title: 'Explorer', emoji: '🧭', desc: 'Identify 5 different objects' },
-  { type: 'scan_10', title: 'Scientist', emoji: '🔬', desc: 'Identify 10 different objects' },
-  { type: 'scan_20', title: 'Professor', emoji: '🎓', desc: 'Identify 20 different objects' },
-  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯', desc: 'Get a perfect score on a quiz' },
-  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩', desc: 'Complete a puzzle correctly' },
-  { type: 'listen_master', title: 'Good Listener', emoji: '👂', desc: 'Listen and identify an object correctly' },
-  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬', desc: 'Send your first chat message' },
-  { type: 'feedback_given', title: 'Helper', emoji: '⭐', desc: 'Submit app feedback' },
+  { type: 'first_scan', emoji: '🔍', titleKey: 'achFirstScan', descKey: 'achFirstScanDesc' },
+  { type: 'scan_5', emoji: '🧭', titleKey: 'achExplorer', descKey: 'achExplorerDesc' },
+  { type: 'scan_10', emoji: '🔬', titleKey: 'achScientist', descKey: 'achScientistDesc' },
+  { type: 'scan_20', emoji: '🎓', titleKey: 'achProfessor', descKey: 'achProfessorDesc' },
+  { type: 'quiz_perfect', emoji: '💯', titleKey: 'achPerfectScore', descKey: 'achPerfectScoreDesc' },
+  { type: 'puzzle_complete', emoji: '🧩', titleKey: 'achPuzzleMaster', descKey: 'achPuzzleMasterDesc' },
+  { type: 'listen_master', emoji: '👂', titleKey: 'achGoodListener', descKey: 'achGoodListenerDesc' },
+  { type: 'chat_first', emoji: '💬', titleKey: 'achChattyKid', descKey: 'achChattyKidDesc' },
+  { type: 'feedback_given', emoji: '⭐', titleKey: 'achHelper', descKey: 'achHelperDesc' },
 ];
 
 // ==================== MAIN APP ====================
@@ -159,7 +159,7 @@ export default function HomePage() {
 
   // Profile state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [guestAchievements, setGuestAchievements] = useState<string[]>([]);
+  const [guestCelebrated, setGuestCelebrated] = useState<Set<string>>(new Set());
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -402,11 +402,13 @@ export default function HomePage() {
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions, descriptionOptions: result.descriptionOptions, funFactOptions: result.funFactOptions }) }).then(() => fetchHistory()).catch(() => {});
         // Only unlock first_scan if not already unlocked
         // Always try to unlock — server is idempotent. Only celebrate if this call actually created the achievement.
+        // Check if achievement already exists in local state before requesting
         if (!achievements.some(ach => ach.type === 'first_scan')) {
           fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).then(r => r.json()).then(data => {
-            // unlockedAt starts with the current year only when we just created it (server sets it)
-            if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) {
-              triggerCelebration('🎉 First Discovery!');
+            // Server returns 201 for NEW achievements, 200 for already-existing (idempotent)
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'first_scan') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`🎉 ${t('achFirstScan')}`);
             }
           }).catch(() => {});
         }
@@ -592,12 +594,15 @@ export default function HomePage() {
       // Unlock achievement, save score (same as current logic)
       if (user?.id !== 'guest') {
         try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }).then(r => r.json()).then(data => {
-          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('🏆 Perfect Score!');
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'quiz_perfect') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`🏆 ${t('achPerfectScore')}`);
+          }
         }); } catch {}
         try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
       } else {
         unlockGuestAchievement('quiz_perfect');
-        triggerCelebration('🏆 Perfect Score!');
+        triggerCelebration(`🏆 ${t('achPerfectScore')}`);
       }
       // DON'T change activeHistoryItem here - wait until next quiz starts
       // The "Next Question" button will handle it
@@ -642,11 +647,14 @@ export default function HomePage() {
       speakBrowserTTS(t('ttsListenCorrect', { word: listenWord }));
       if (user?.id !== 'guest') {
         fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).then(r => r.json()).then(data => {
-          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('👂 Good Listener!');
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'listen_master') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`👂 ${t('achGoodListener')}`);
+          }
         }).catch(() => {});
       } else {
         unlockGuestAchievement('listen_master');
-        triggerCelebration('👂 Good Listener!');
+        triggerCelebration(`👂 ${t('achGoodListener')}`);
       }
     } else {
       speakBrowserTTS(t('ttsListenWrong', { word: listenWord }));
@@ -712,11 +720,14 @@ export default function HomePage() {
       if (correct) {
         if (user?.id !== 'guest') {
           fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).then(r => r.json()).then(data => {
-            if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('🧩 Puzzle Master!');
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'puzzle_complete') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`🧩 ${t('achPuzzleMaster')}`);
+            }
           }).catch(() => {});
         } else {
           unlockGuestAchievement('puzzle_complete');
-          triggerCelebration('🧩 Puzzle Master!');
+          triggerCelebration(`🧩 ${t('achPuzzleMaster')}`);
         }
         speakBrowserTTS(t('ttsPuzzleComplete'));
       } else {
@@ -734,11 +745,14 @@ export default function HomePage() {
     if (chatMessages.length === 0) {
       if (user?.id !== 'guest') {
         fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).then(r => r.json()).then(data => {
-          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('💬 Chatty Kid!');
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'chat_first') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`💬 ${t('achChattyKid')}`);
+          }
         }).catch(() => {});
       } else {
         unlockGuestAchievement('chat_first');
-        triggerCelebration('💬 Chatty Kid!');
+        triggerCelebration(`💬 ${t('achChattyKid')}`);
       }
     }
     try {
@@ -758,6 +772,13 @@ export default function HomePage() {
         const res = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }) });
         if (res.ok) {
           setFeedbackSent(true);
+          // Unlock feedback achievement
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'feedback_given', title: 'Helper', emoji: '⭐' }) }).then(r => r.json()).then(data => {
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'feedback_given') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`⭐ ${t('achHelper')}`);
+            }
+          }).catch(() => {});
         } else {
           setError('Failed to send feedback. Please try again!');
         }
@@ -787,13 +808,21 @@ export default function HomePage() {
   };
 
   const unlockGuestAchievement = (type: string) => {
-    if (!guestAchievements.includes(type)) {
-      const newAchievements = [...guestAchievements, type];
-      setGuestAchievements(newAchievements);
-      localStorage.setItem('guestAchievements', JSON.stringify(newAchievements));
-      setAchievements(prev => [...prev, { id: type, type, title: ACHIEVEMENT_DEFS.find(d => d.type === type)?.title || type, emoji: ACHIEVEMENT_DEFS.find(d => d.type === type)?.emoji || '🏆', unlockedAt: new Date().toISOString() }]);
+    if (!guestCelebrated.has(type)) {
+      setGuestCelebrated(prev => new Set([...prev, type]));
+      localStorage.setItem('guestCelebrated', JSON.stringify([...guestCelebrated, type]));
+      const def = ACHIEVEMENT_DEFS.find(d => d.type === type);
+      setAchievements(prev => [...prev, { id: type, type, title: def ? t(def.titleKey) : type, emoji: def?.emoji || '🏆', unlockedAt: new Date().toISOString() }]);
     }
   };
+
+  // Load guest celebrated achievements from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('guestCelebrated');
+      if (saved) setGuestCelebrated(new Set(JSON.parse(saved)));
+    } catch {}
+  }, []);
 
   useEffect(() => { if (user && user.id !== 'guest') { fetchHistory(); fetchAchievements(); } }, [user]);
   useEffect(() => { if (activeTab === 'profile' && user && user.id !== 'guest') fetchAchievements(); }, [activeTab, user]);
@@ -1169,7 +1198,7 @@ export default function HomePage() {
                     {THEMES.map(tm => (
                       <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
                         className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                        {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
+                        {tm.emoji} {tm.name}
                       </button>
                     ))}
                   </div>
@@ -1512,12 +1541,12 @@ export default function HomePage() {
                     {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
                     {chatMessages.map((m, i) => (
                       <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-white text-gray-900 border border-gray-300 shadow-md'}`}>
                           {m.content}
                         </div>
                       </div>
                     ))}
-                    {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">{t('chatThinking')}</div></div>}
+                    {chatLoading && <div className="flex justify-start"><div className="bg-white px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse border border-gray-300">{t('chatThinking')}</div></div>}
                   </div>
                 </ScrollArea>
                 <div className="flex gap-2 p-2 border-t border-gray-100">
@@ -1554,10 +1583,10 @@ export default function HomePage() {
                   <div className="grid grid-cols-3 gap-2">
                     {ACHIEVEMENT_DEFS.map(a => {
                       const unlocked = achievements.find(ach => ach.type === a.type);
-                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={a.desc}>
+                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={t(a.descKey)}>
                         <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
-                        <p className="text-[10px] font-medium mt-1">{a.title}</p>
-                        <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
+                        <p className="text-[10px] font-medium mt-1">{t(a.titleKey)}</p>
+                        <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{t(a.descKey)}</p>
                       </div>;
                     })}
                   </div>
