@@ -198,6 +198,16 @@
 [data-theme="night"] .text-gray-400 { color: #64748b !important; }
 [data-theme="night"] .text-gray-300 { color: #475569 !important; }
 
+/* Night theme footer override */
+[data-theme="night"] footer {
+  background: rgba(15, 15, 30, 0.6) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="night"] footer p {
+  color: #94a3b8 !important;
+}
+
 /* Candy Kingdom */
 [data-theme="candy"] {
   --kid-accent-rgb: 236 72 153;
@@ -286,11 +296,11 @@
 }
 
 [data-theme="default"] { --theme-button-radius: var(--radius-2xl); }
-[data-theme="ocean"] { --theme-button-radius: 9999px; }
-[data-theme="forest"] { --theme-button-radius: var(--radius-3xl); }
+[data-theme="ocean"] { --theme-button-radius: var(--radius-2xl); }
+[data-theme="forest"] { --theme-button-radius: var(--radius-2xl); }
 [data-theme="sunset"] { --theme-button-radius: var(--radius-2xl); }
 [data-theme="night"] { --theme-button-radius: var(--radius-xl); }
-[data-theme="candy"] { --theme-button-radius: 9999px; }
+[data-theme="candy"] { --theme-button-radius: var(--radius-2xl); }
 
 /* ==================== THEME CARD STYLES ==================== */
 
@@ -347,20 +357,20 @@
   box-shadow: 0 8px 30px var(--kid-shadow-color), inset 0 0 40px rgba(244, 63, 94, 0.08);
 }
 
-/* Wavy - organic flowing shape with float animation */
+/* Wavy - subtle wave shape */
 .card-style-wavy {
   background: var(--kid-card-bg);
   border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
-  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  border-radius: 1.5rem 2rem 1.5rem 2rem / 2rem 1.5rem 2rem 1.5rem;
   overflow: hidden;
   transition: all 0.3s ease;
   animation: float-gentle 3s ease-in-out infinite;
 }
 
-/* Organic - asymmetrical, natural feel */
+/* Organic - subtle organic shape */
 .card-style-organic {
   background: var(--kid-card-bg);
-  border-radius: 2rem 1rem 3rem 1.5rem / 1.5rem 3rem 1rem 2rem;
+  border-radius: 1.5rem 1.25rem 1.75rem 1.25rem / 1.25rem 1.75rem 1.25rem 1.5rem;
   border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
   padding: 1.5rem 2rem;
   overflow: hidden;
@@ -380,17 +390,18 @@
   transition: all 0.3s ease;
 }
 
-/* Candy - rounded, dashed border (already in candy theme) */
+/* Candy - playful rounded border */
 .card-style-candy {
   background: var(--kid-card-bg);
-  border-radius: 9999px;
+  border-radius: var(--radius-2xl, 1rem);
   border: 4px dashed var(--kid-accent-hex);
   overflow: hidden;
   transition: all 0.3s ease;
 }
 .card-style-candy:hover {
   border-color: var(--kid-accent-hex);
-  transform: scale(1.02);
+  transform: translateY(-2px);
+  z-index: 1;
 }
 
 /* Keep original card-kid as alias for bouncy (backward compatibility) */
@@ -553,7 +564,7 @@
 
 /* ==================== CARD STYLE VARIATIONS ==================== */
 [data-theme="candy"] .card-kid {
-  border-radius: 9999px;
+  border-radius: var(--radius-2xl, 1rem);
   border: 4px dashed var(--kid-accent-hex);
 }
 

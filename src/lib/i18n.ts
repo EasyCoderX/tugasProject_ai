@@ -183,7 +183,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Upload an image first',
     generating: 'Generating options...',
-    quizError: 'Could not generate quiz. Try identifying a new object!',
+    quizError: 'Oops! The quiz could not load. Want to try again? 🔄',
     revealAnswer: 'Reveal Answer',
     nextQuestion: 'Next Question',
     tryAnother: 'Try Another',
@@ -191,6 +191,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: 'Guest',
+
+    // Celebration overlay
+    continue: 'Continue',
   },
 
   id: {
@@ -372,7 +375,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Unggah gambar terlebih dahulu',
     generating: 'Menghasilkan opsi...',
-    quizError: 'Kuis tidak dapat dihasilkan. Coba identifikasi objek baru!',
+    quizError: 'Ups! Kuis tidak bisa dimuat. Coba lagi ya! 🔄',
     revealAnswer: 'Tampilkan Jawaban',
     nextQuestion: 'Pertanyaan Berikutnya',
     tryAnother: 'Coba Lagi',
@@ -380,6 +383,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: 'Tamu',
+
+    // Celebration overlay
+    continue: 'Lanjutkan',
   },
 
   zh: {
@@ -552,7 +558,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: '拼图',
     identifyFirstPuzzle: '先上传一张图片',
     generating: '正在生成选项...',
-    quizError: '无法生成测验题目。请尝试识别一个新物体！',
+    quizError: '哎呀！测验加载失败了。要再试一次吗？🔄',
     revealAnswer: '揭晓答案',
     nextQuestion: '下一题',
     tryAnother: '再试一次',
@@ -560,6 +566,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: '游客',
+
+    // Celebration overlay
+    continue: '继续',
   },
 };
 

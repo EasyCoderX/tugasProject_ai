@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { THEMES } from '@/lib/themes';
 import {
   Camera, Volume2, VolumeX, RotateCcw, Sparkles, SwitchCamera, ImagePlus,
   Upload, Settings, Star, BookOpen, MessageCircle, Home, Gamepad2,
   User, Trophy, Send, RotateCw, Puzzle, HelpCircle, Crown, LogOut,
-  Languages, Palette, Trash2, ChevronRight, Check, X, Mic, Eye, Award
+  Languages, Palette, Trash2, ChevronRight, Check, X, Mic, Eye, Award,
+  Shield, Trophy as TrophyIcon, Zap, Rainbow, Smile, Laugh, Heart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +21,8 @@ import MobileTabBar from '@/components/MobileTabBar';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTranslation, type Lang } from '@/lib/i18n';
+import Confetti from '@/components/Confetti';
+import CelebrationOverlay from '@/components/CelebrationOverlay';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -127,6 +130,7 @@ export default function HomePage() {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizGenerating, setQuizGenerating] = useState(false);
   const [quizRevealed, setQuizRevealed] = useState(false);
+  const [quizError, setQuizError] = useState(false);
   const [quizCorrectAnswer, setQuizCorrectAnswer] = useState<string | null>(null);
   const [quizCache, setQuizCache] = useState<Array<{
     historyItem: HistoryItem;
@@ -167,6 +171,46 @@ export default function HomePage() {
       document.documentElement.setAttribute('data-theme', theme);
     }
   }, [theme]);
+
+  // Celebration state for achievements
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [celebration, setCelebration] = useState<{
+    isOpen: boolean;
+    emoji: string;
+    title: string;
+  }>({ isOpen: false, emoji: '', title: '' });
+
+  const triggerCelebration = useCallback((message: string) => {
+    const parts = message.split(' ');
+    const emoji = parts[0] || '🎉';
+    const title = parts.length > 1 ? parts.slice(1).join(' ') : message;
+    setCelebration({ isOpen: true, emoji, title });
+    setShowConfetti(true);
+  }, []);
+
+  const handleCelebrationClose = useCallback(() => {
+    setCelebration({ isOpen: false, emoji: '', title: '' });
+    setShowConfetti(false);
+  }, []);
+
+  // ---- Theme (needed early for heroBackground) ----
+  const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // Memoized emoji positions to avoid hydration mismatch (Math.random() differs between SSR and client)
+  const floatingEmojiPositions = useMemo(() =>
+    ['📸', '🔬', '🎨', '🌟', '🧩', '📚'].map((emoji, i) => ({
+      emoji,
+      top: `${15 + (i * 11.1) % 70}%`,
+      left: `${10 + (i * 13.7) % 80}%`,
+      duration: 8 + i * 2,
+      index: i,
+    })), []
+  );
+
+  // Animated gradient background style
+  const heroBackground = useMemo(() => ({
+    backgroundImage: `linear-gradient(135deg, ${currentTheme.accentHex}22 0%, ${currentTheme.accentHex}11 30%, transparent 60%), radial-gradient(circle at 80% 20%, ${currentTheme.accentHex}15 0%, transparent 50%), radial-gradient(circle at 20% 80%, ${currentTheme.accentHex}10 0%, transparent 50%)`,
+  }), [currentTheme.accentHex]);
 
   // ---- Load user on mount ----
   useEffect(() => {
@@ -226,9 +270,6 @@ export default function HomePage() {
 
   // ---- i18n ----
   const { t } = useTranslation(language);
-
-  // ---- Theme ----
-  const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
 
   // Handle theme portal event from Sidebar
   useEffect(() => {
@@ -360,8 +401,14 @@ export default function HomePage() {
         // Save to DB history
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions, descriptionOptions: result.descriptionOptions, funFactOptions: result.funFactOptions }) }).then(() => fetchHistory()).catch(() => {});
         // Only unlock first_scan if not already unlocked
+        // Always try to unlock — server is idempotent. Only celebrate if this call actually created the achievement.
         if (!achievements.some(ach => ach.type === 'first_scan')) {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).then(r => r.json()).then(data => {
+            // unlockedAt starts with the current year only when we just created it (server sets it)
+            if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) {
+              triggerCelebration('🎉 First Discovery!');
+            }
+          }).catch(() => {});
         }
       } else {
         // Guest: just save locally
@@ -499,6 +546,7 @@ export default function HomePage() {
     setShowQuizResult(false);
     setQuizGenerating(true);
     setQuizQuestion(t('quizQuestion'));
+    setQuizError(false);
     setQuizScore({ score: 0, total: 1 });
 
     const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== item.name);
@@ -522,7 +570,8 @@ export default function HomePage() {
 
     setQuizGenerating(false);
     setQuizOptions([]);
-    setQuizQuestion(t('quizError') || 'Could not generate quiz. Please try again!');
+    setQuizQuestion(t('quizError') || 'Oops! The quiz could not load. Want to try again? 🔄');
+    setQuizError(true);
   }, [activeHistoryItem, currentResult, language, history, quizCache, preloadQuizzes]);
 
   const answerQuiz = (answer: string) => {
@@ -542,10 +591,13 @@ export default function HomePage() {
     if (correct) {
       // Unlock achievement, save score (same as current logic)
       if (user?.id !== 'guest') {
-        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
+        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }).then(r => r.json()).then(data => {
+          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('🏆 Perfect Score!');
+        }); } catch {}
         try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
       } else {
         unlockGuestAchievement('quiz_perfect');
+        triggerCelebration('🏆 Perfect Score!');
       }
       // DON'T change activeHistoryItem here - wait until next quiz starts
       // The "Next Question" button will handle it
@@ -589,9 +641,12 @@ export default function HomePage() {
     if (correct) {
       speakBrowserTTS(t('ttsListenCorrect', { word: listenWord }));
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).catch(() => {});
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).then(r => r.json()).then(data => {
+          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('👂 Good Listener!');
+        }).catch(() => {});
       } else {
         unlockGuestAchievement('listen_master');
+        triggerCelebration('👂 Good Listener!');
       }
     } else {
       speakBrowserTTS(t('ttsListenWrong', { word: listenWord }));
@@ -656,9 +711,12 @@ export default function HomePage() {
       setPuzzleResult(correct ? 'correct' : 'incorrect');
       if (correct) {
         if (user?.id !== 'guest') {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).then(r => r.json()).then(data => {
+            if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('🧩 Puzzle Master!');
+          }).catch(() => {});
         } else {
           unlockGuestAchievement('puzzle_complete');
+          triggerCelebration('🧩 Puzzle Master!');
         }
         speakBrowserTTS(t('ttsPuzzleComplete'));
       } else {
@@ -675,9 +733,12 @@ export default function HomePage() {
     setChatInput(''); setChatLoading(true);
     if (chatMessages.length === 0) {
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).then(r => r.json()).then(data => {
+          if (data.achievement && data.achievement.unlockedAt && new Date(data.achievement.unlockedAt).getFullYear() === new Date().getFullYear()) triggerCelebration('💬 Chatty Kid!');
+        }).catch(() => {});
       } else {
         unlockGuestAchievement('chat_first');
+        triggerCelebration('💬 Chatty Kid!');
       }
     }
     try {
@@ -776,47 +837,246 @@ export default function HomePage() {
   // ==================== AUTH SCREEN ====================
   if (!user) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br ${currentTheme.bg} p-4`}>
-        <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-7xl mb-4">🔍</motion.div>
-        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-orange-500 to-green-500 bg-clip-text text-transparent">{t('appTitle')}</h1>
-        <p className="text-gray-500 mb-8">{t('appSubtitle')}</p>
-        <AnimatePresence mode="wait">
-          {showAuth ? (
-            <motion.div key={showAuth} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-sm">
-              <h2 className="text-2xl font-bold mb-4 text-center">{showAuth === 'login' ? t('welcomeBack') : t('joinTheFun')}</h2>
-              {authError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm mb-4 text-center">{authError}</div>}
-              {showAuth === 'register' && (
-                <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('username')}</label>
-                  <Input placeholder="CoolKid123" value={authForm.username} onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))} className="rounded-xl" /></div>
-              )}
-              <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('email')}</label>
-                <Input type="email" placeholder="kid@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} className="rounded-xl" /></div>
-              <div className="mb-4"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('password')}</label>
-                <Input type="password" placeholder="••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} className="rounded-xl" /></div>
-              <Button onClick={() => handleAuth(showAuth)} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-xl py-5 text-lg">
-                {showAuth === 'login' ? t('login') : t('createAccount')}
-              </Button>
-              <p className="text-center text-sm text-gray-500 mt-3">
-                {showAuth === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
-                <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="text-purple-600 font-semibold">{showAuth === 'login' ? t('register') : t('login')}</button>
-              </p>
-              <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-2">{t('cancel')}</button>
-            </motion.div>
-          ) : (
-            <motion.div key="buttons" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full max-w-sm">
-              <Button onClick={() => setShowAuth('register')} size="lg" className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 text-white font-bold text-lg rounded-2xl py-6 shadow-xl">
-                🎉 {t('createAccount')}
-              </Button>
-              <Button onClick={() => setShowAuth('login')} size="lg" variant="outline" className="font-bold text-lg rounded-2xl py-6">
-                🔑 {t('login')}
-              </Button>
-              <Button onClick={() => { setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' }); }} variant="ghost" className="text-gray-500">
-                {t('continueAsGuest')}
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className={`min-h-screen flex flex-col items-center justify-center ${currentTheme.bg} p-4 relative overflow-hidden`} style={heroBackground}>
+        {/* Animated background blobs */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <motion.div
+            animate={{ x: [0, 100, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-gradient-to-br from-orange-300/20 to-yellow-300/20 blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, -80, 0], y: [0, 60, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+            className="absolute bottom-1/4 right-10 w-80 h-80 rounded-full bg-gradient-to-br from-green-300/20 to-teal-300/20 blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, 40, 0], y: [0, -30, 0], scale: [1, 1.3, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 10 }}
+            className="absolute top-1/2 left-1/3 w-72 h-72 rounded-full bg-gradient-to-br from-purple-300/15 to-pink-300/15 blur-3xl"
+          />
+        </div>
+
+        {/* Decorative floating emojis */}
+        {floatingEmojiPositions.map(({ emoji, top, left, duration, index }) => (
+          <motion.div
+            key={emoji}
+            animate={{
+              y: [0, -30 - index * 10, 0],
+              rotate: [0, (emoji.charCodeAt(0) % 40) - 20, 0],
+            }}
+            transition={{
+              duration,
+              repeat: Infinity,
+              delay: index * 0.8,
+              ease: "easeInOut",
+            }}
+            className="absolute text-3xl opacity-10 pointer-events-none"
+            style={{ top, left }}
+          >
+            {emoji}
+          </motion.div>
+        ))}
+
+        <Confetti isActive={showConfetti} />
+
+        <CelebrationOverlay
+          isOpen={celebration.isOpen}
+          emoji={celebration.emoji}
+          title={celebration.title}
+          onClose={handleCelebrationClose}
+          accentColor={currentTheme?.accent || 'orange'}
+          accentHex={currentTheme?.accentHex || '#fb923c'}
+          buttonRadius={currentTheme?.buttonRadius || 'rounded-2xl'}
+          lang={language}
+        />
+
+        {/* Main content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md mx-auto">
+          {/* Animated hero icon */}
+          <motion.div
+            animate={{ y: [0, -12, 0], scale: [1, 1.05, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="text-8xl mb-6 drop-shadow-xl"
+          >
+            🔍
+          </motion.div>
+
+          {/* App title with gradient */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-4xl sm:text-5xl font-extrabold mb-2 text-center font-fredoka leading-tight"
+            style={{
+              background: `linear-gradient(135deg, ${currentTheme.accentHex}, #facc15 50%, ${currentTheme.accentHex})`,
+              backgroundSize: '200% 200%',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'gradientShift 8s ease infinite',
+            }}
+          >
+            {t('appTitle')}
+          </motion.h1>
+
+          {/* App subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-gray-500 mb-10 text-center text-base font-medium"
+          >
+            {t('appSubtitle')}
+          </motion.p>
+
+          <AnimatePresence mode="wait">
+            {showAuth ? (
+              <motion.div
+                key={showAuth}
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full border border-gray-100/50"
+                style={{ boxShadow: '0 25px 60px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.03)' }}
+              >
+                <h2 className="text-2xl font-extrabold mb-6 text-center font-fredoka" style={{ color: 'var(--kid-accent-hex)' }}>
+                  {showAuth === 'login' ? '👋 ' + t('welcomeBack') : '🎉 ' + t('joinTheFun')}
+                </h2>
+
+                {authError && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm mb-5 text-center font-medium border border-red-200"
+                  >
+                    {authError}
+                  </motion.div>
+                )}
+
+                {showAuth === 'register' && (
+                  <div className="mb-4">
+                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('username')}</label>
+                    <Input
+                      placeholder="CoolKid123"
+                      value={authForm.username}
+                      onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))}
+                      className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('email')}</label>
+                  <Input
+                    type="email"
+                    placeholder="kid@example.com"
+                    value={authForm.email}
+                    onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))}
+                    className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('password')}</label>
+                  <Input
+                    type="password"
+                    placeholder="••••••"
+                    value={authForm.password}
+                    onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))}
+                    className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                  />
+                </div>
+
+                <Button onClick={() => handleAuth(showAuth)} className="w-full font-bold text-lg rounded-2xl py-5 shadow-lg hover:shadow-xl transition-all font-fredoka"
+                  style={{
+                    background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                    color: 'white',
+                    boxShadow: `0 8px 30px ${currentTheme.accentHex}33`,
+                  }}
+                >
+                  {showAuth === 'login' ? t('login') : t('createAccount')}
+                </Button>
+
+                <p className="text-center text-sm text-gray-500 mt-4 font-fredoka">
+                  {showAuth === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
+                  <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="font-semibold hover:underline ml-1" style={{ color: currentTheme.accentHex }}>
+                    {showAuth === 'login' ? t('register') : t('login')}
+                  </button>
+                </p>
+
+                <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-3 hover:text-gray-600 transition-colors">{t('cancel')}</button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="buttons"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
+                className="flex flex-col gap-4 w-full max-w-sm relative z-10"
+              >
+                <motion.div
+                  whileHover={{ y: -3, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button size="lg" className="w-full font-extrabold text-lg rounded-2xl py-7 shadow-2xl font-fredoka tracking-wide"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}dd)`,
+                      color: 'white',
+                      boxShadow: `0 12px 40px ${currentTheme.accentHex}44`,
+                      border: 'none',
+                    }}
+                  >
+                    🎉 {t('createAccount')}
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                  <Button size="lg" variant="outline" className="w-full font-bold text-lg rounded-2xl py-7 border-2 font-fredoka"
+                    style={{
+                      borderColor: `${currentTheme.accentHex}55`,
+                      color: currentTheme.accentHex,
+                      background: `${currentTheme.accentHex}08`,
+                    }}
+                    onClick={() => setShowAuth('login')}
+                  >
+                    🔑 {t('login')}
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ x: 5 }}>
+                  <Button variant="ghost" className="text-gray-500 hover:text-gray-700 font-fredoka w-full" onClick={() => {
+                    setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' });
+                  }}>
+                    👤 {t('continueAsGuest')}
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Trust badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="flex items-center justify-center gap-4 mt-8 text-sm text-gray-400"
+          >
+            <div className="flex items-center gap-1">
+              <Shield className="h-4 w-4 text-green-400" />
+              <span>Safe</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Laugh className="h-4 w-4 text-yellow-400" />
+              <span>Fun</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="h-4 w-4 text-red-400" />
+              <span>Kid-Friendly</span>
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -828,6 +1088,21 @@ export default function HomePage() {
 
   return (
     <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }}>
+      {/* Celebration Overlay - rendered here for main app view */}
+      <CelebrationOverlay
+        isOpen={celebration.isOpen}
+        emoji={celebration.emoji}
+        title={celebration.title}
+        onClose={handleCelebrationClose}
+        accentColor={currentTheme?.accent || 'orange'}
+        accentHex={currentTheme?.accentHex || '#fb923c'}
+        buttonRadius={currentTheme?.buttonRadius || 'rounded-2xl'}
+        lang={language}
+      />
+
+      {/* Confetti */}
+      <Confetti isActive={showConfetti} />
+
       {/* Animated background decorations */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -1105,6 +1380,17 @@ export default function HomePage() {
                               {opt}
                             </button>
                           ))}
+                        </div>
+                      ) : quizError ? (
+                        <div className="text-center py-4">
+                          <div className="text-4xl mb-2">😅</div>
+                          <p className="text-sm text-gray-600 mb-4">{quizQuestion}</p>
+                          <button
+                            onClick={() => { setQuizError(false); setQuizQuestion(t('quizQuestion')); startQuiz(); }}
+                            className="bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 rounded-xl text-sm font-bold hover:shadow-lg transition-all"
+                          >
+                            🔄 {t('tryAgain') || 'Try Again'}
+                          </button>
                         </div>
                       ) : null}
                       {/* Reveal Answer button - shown after answering but before reveal */}
