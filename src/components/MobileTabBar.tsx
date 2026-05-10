@@ -9,6 +9,7 @@ interface MobileTabBarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   themeData: ThemeConfig;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
   language?: string;
 }
 
@@ -20,16 +21,19 @@ const navItems = [
   { id: 'profile', icon: User, label: 'me' },
 ];
 
-export default function MobileTabBar({ activeTab, onTabChange, themeData, language = 'en' }: MobileTabBarProps) {
+export default function MobileTabBar({ activeTab, onTabChange, themeData, sectionAccent, language = 'en' }: MobileTabBarProps) {
   const { t } = useTranslation(language);
+  const activeColor = sectionAccent?.hex || themeData.accentHex;
+  const activeRgb = sectionAccent?.rgb || themeData.accentRgb;
 
   return (
     <motion.div
       initial={{ y: 100 }}
       animate={{ y: 0 }}
-      className="bg-white/90 backdrop-blur-lg border-t-2 shadow-2xl pb-safe"
+      className="bg-white/90 backdrop-blur-xl border-t-2 shadow-2xl pb-safe"
       style={{
-        borderColor: `rgb(var(--kid-accent-rgb) / 0.2)`,
+        borderColor: `rgba(${activeRgb}, 0.2)`,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(${activeRgb}, 0.05) 100%)`,
       }}
     >
       <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
@@ -53,8 +57,8 @@ export default function MobileTabBar({ activeTab, onTabChange, themeData, langua
                   layoutId="mobileActiveTab"
                   className="absolute inset-1 rounded-xl -z-10"
                   style={{
-                    background: `linear-gradient(135deg, ${themeData.accentHex}, ${themeData.accentHex}80)`,
-                    boxShadow: `0 4px 15px ${themeData.accentHex}40`,
+                    background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)`,
+                    boxShadow: `0 4px 15px ${activeColor}40`,
                   }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />

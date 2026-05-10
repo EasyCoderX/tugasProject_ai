@@ -34,9 +34,10 @@ interface BtnProps extends VariantProps<typeof btnVariants> {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
 }
 
-export function Btn({ icon, onClick, color, size, disabled, className }: BtnProps) {
+export function Btn({ icon, onClick, color, size, disabled, className, sectionAccent }: BtnProps) {
   return (
     <motion.div whileTap={{ scale: 0.9 }}>
       <button
@@ -47,6 +48,10 @@ export function Btn({ icon, onClick, color, size, disabled, className }: BtnProp
         style={{
           minWidth: '48px',
           minHeight: '48px',
+          ...(sectionAccent && {
+            background: `linear-gradient(135deg, ${sectionAccent.hex}dd 0%, ${sectionAccent.hex}99 100%)`,
+            boxShadow: `0 4px 20px ${sectionAccent.hex}60`,
+          }),
         }}
       >
         {icon}
@@ -60,9 +65,10 @@ interface BigBtnProps {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
 }
 
-export function BigBtn({ children, onClick, disabled, className }: BigBtnProps) {
+export function BigBtn({ children, onClick, disabled, className, sectionAccent }: BigBtnProps) {
   return (
     <motion.div whileTap={{ scale: 0.85 }} whileHover={{ scale: 1.05 }}>
       <button
@@ -71,13 +77,19 @@ export function BigBtn({ children, onClick, disabled, className }: BigBtnProps) 
         className={cn(
           'relative inline-flex items-center justify-center rounded-full shadow-xl disabled:opacity-50 overflow-hidden',
           'h-20 w-20 sm:h-24 sm:w-24',
-          'bg-gradient-to-br from-red-400 via-pink-400 to-red-500 text-white',
+          'text-white',
           className
         )}
         data-slot="big-btn"
         style={{
           minWidth: '80px',
           minHeight: '80px',
+          background: sectionAccent
+            ? `linear-gradient(135deg, ${sectionAccent.hex}dd 0%, ${sectionAccent.hex}99 100%)`
+            : 'linear-gradient(135deg, #f87171 0%, #ec4899 50%, #f87171 100%)',
+          boxShadow: sectionAccent
+            ? `0 8px 32px ${sectionAccent.hex}60`
+            : '0 8px 32px rgba(248, 113, 113, 0.5)',
         }}
       >
         <div className="absolute inset-0 rounded-full border-4 border-white/40" />

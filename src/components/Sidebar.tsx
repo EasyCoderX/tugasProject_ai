@@ -12,6 +12,7 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   themeData: ThemeConfig;
   user: UserInfo | null;
+  sectionAccent: { hex: string; rgb: string; gradient: string };
 }
 
 const navItems = [
@@ -22,7 +23,7 @@ const navItems = [
   { id: 'profile', icon: User, label: 'me' },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, themeData, user }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, themeData, user, sectionAccent }: SidebarProps) {
   const { t } = useTranslation(user?.language || 'en');
   const [collapsed, setCollapsed] = useState(false);
 
@@ -35,12 +36,14 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="hidden md:flex flex-col h-screen sticky top-0 z-40 border-r-2 overflow-hidden"
       style={{
-        background: `linear-gradient(180deg, ${themeData.accentHex}08 0%, var(--kid-card-bg) 100%)`,
-        borderColor: `rgb(var(--kid-accent-rgb) / 0.15)`,
+        background: `linear-gradient(180deg, rgba(${sectionAccent.rgb}, 0.08) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.95) 100%)`,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderColor: `rgba(${sectionAccent.rgb}, 0.15)`,
       }}
     >
       {/* Logo area */}
-      <div className="flex items-center gap-3 p-4 border-b-2" style={{ borderColor: `rgb(var(--kid-accent-rgb) / 0.15)` }}>
+      <div className="flex items-center gap-3 p-4 border-b-2" style={{ borderColor: `rgba(${sectionAccent.rgb}, 0.15)` }}>
         <motion.div
           animate={{ rotate: [0, 10, -10, 0] }}
           transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
@@ -79,9 +82,9 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
               }`}
               style={{
                 background: isActive
-                  ? `linear-gradient(135deg, ${themeData.accentHex}, ${themeData.accentHex}80)`
+                  ? `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)`
                   : 'transparent',
-                boxShadow: isActive ? `0 4px 15px ${themeData.accentHex}40` : 'none',
+                boxShadow: isActive ? `0 8px 24px ${sectionAccent.hex}50` : 'none',
               }}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -101,7 +104,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
                 <motion.div
                   layoutId="activeTab"
                   className="absolute inset-0 rounded-2xl -z-10"
-                  style={{ background: `linear-gradient(135deg, ${themeData.accentHex}, ${themeData.accentHex}80)` }}
+                  style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)` }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
@@ -111,7 +114,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
       </nav>
 
       {/* Bottom section: Theme + User + Collapse */}
-      <div className="p-2 border-t-2 space-y-2" style={{ borderColor: `rgb(var(--kid-accent-rgb) / 0.15)` }}>
+      <div className="p-2 border-t-2 space-y-2" style={{ borderColor: `rgba(${sectionAccent.rgb}, 0.15)` }}>
         {/* Theme button */}
         <motion.button
           onClick={() => {

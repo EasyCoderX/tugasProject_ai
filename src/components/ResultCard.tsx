@@ -1,15 +1,15 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Check, X, Volume2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Star, Volume2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/lib/i18n';
 import type { IdentifyResult } from '@/lib/helpers';
+import { staggerContainer, staggerItem, emojiBounce, contentReveal } from '@/lib/animation';
 
 interface ResultCardProps {
-  result: IdentifyResult;
+  result: IdentifyResult | null;
   language: string;
   onListen: () => void;
   onQuiz: () => void;
@@ -17,6 +17,7 @@ interface ResultCardProps {
   getNameInLang: (item: IdentifyResult, lang: string) => string;
   getDescInLang: (item: IdentifyResult, lang: string) => string;
   getFactInLang: (item: IdentifyResult, lang: string) => string;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
 }
 
 export default function ResultCard({
@@ -28,103 +29,172 @@ export default function ResultCard({
   getNameInLang,
   getDescInLang,
   getFactInLang,
+  sectionAccent,
 }: ResultCardProps) {
   const { t } = useTranslation(language);
+  const [flipped, setFlipped] = useState(false);
+
+  // Reset flip state when result changes, then trigger flip reveal after delay
+  useEffect(() => {
+    if (result) {
+      setFlipped(false);
+      const timer = setTimeout(() => setFlipped(true), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setFlipped(false);
+    }
+  }, [result]);
+
+  // Resolve active color from section accent or fallback
+  const activeColor = sectionAccent?.hex || '#f97316';
 
   return (
     <AnimatePresence>
       {result && (
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          key="result"
+          style={{ perspective: 1200 }}
         >
-          <Card className="border-2 border-yellow-200 bg-white/95 shadow-2xl overflow-hidden backdrop-blur-sm">
-            {/* Gradient accent bar */}
-            <div className="h-2 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
-
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                {/* Large emoji with float animation */}
+          {/* Flip container — single motion.div wraps both faces */}
+          <div className="relative" style={{ perspective: 1200 }}>
+            <motion.div
+              animate={{ rotateY: flipped ? 0 : 180 }}
+              transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+              style={{
+                transformStyle: 'preserve-3d',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              }}
+              className="rounded-3xl overflow-hidden"
+            >
+              {/* Back face — sparkle loading screen shown during flip */}
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl"
+                style={{
+                  background: `linear-gradient(135deg, ${activeColor}, ${activeColor}80)`,
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+              >
                 <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="text-5xl sm:text-6xl flex-shrink-0 drop-shadow-lg"
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="text-6xl"
                 >
-                  {result.emoji}
+                  ✨
                 </motion.div>
+                <p className="text-white font-bold text-lg mt-2 font-fredoka">Discovering...</p>
+              </div>
 
-                <div className="flex-1 min-w-0">
-                  {/* Name + Badges */}
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-gray-800 font-fredoka">
-                      {getNameInLang(result, language)}
-                    </h2>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      {result.category}
-                    </Badge>
-                    {result.warning && (
-                      <Badge className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        ⚠️ {result.warning}
-                      </Badge>
-                    )}
-                  </div>
+              {/* Front face — result card with glass morphism */}
+              <div
+                className="bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-3xl"
+                style={{
+                  boxShadow: `0 8px 32px ${activeColor}20, 0 0 0 1px ${activeColor}10`,
+                  backdropFilter: 'blur(20px)',
+                }}
+              >
+                {/* Accent top bar */}
+                <div className={`h-2 rounded-t-3xl bg-gradient-to-r ${sectionAccent?.gradient || 'from-orange-400 to-yellow-400'}`} />
 
-                  {/* Description */}
-                  <p className="text-sm text-gray-600 leading-relaxed mb-3">{getDescInLang(result, language)}</p>
-
-                  {/* Fun Fact */}
+                <div className="p-6">
+                  {/* Staggered content */}
                   <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-2 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-200 shadow-sm"
+                    variants={staggerContainer(0.1)}
+                    initial="hidden"
+                    animate="visible"
                   >
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <motion.div
-                        animate={{ rotate: [0, 15, -15, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                      </motion.div>
-                      <span className="text-xs font-bold text-yellow-700">{t('funFact')}</span>
-                    </div>
-                    <p className="text-sm text-yellow-800 leading-relaxed">{getFactInLang(result, language)}</p>
-                  </motion.div>
+                    {/* Emoji with bounce */}
+                    <motion.div variants={emojiBounce} className="text-6xl sm:text-7xl text-center mb-3 drop-shadow-lg">
+                      {result.emoji}
+                    </motion.div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={onListen}
-                      className="px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-400 text-white rounded-xl font-medium hover:shadow-lg transition-all font-fredoka text-sm shadow-md"
+                    {/* Name + Badge */}
+                    <motion.div variants={contentReveal} className="flex items-center justify-center gap-3 mb-3 flex-wrap">
+                      <h2
+                        className="text-2xl sm:text-3xl font-extrabold font-fredoka"
+                        style={{
+                          background: `linear-gradient(135deg, ${activeColor}, ${activeColor}aa)`,
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                        }}
+                      >
+                        {getNameInLang(result, language)}
+                      </h2>
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                        {result.category}
+                      </Badge>
+                    </motion.div>
+
+                    {/* Description */}
+                    <motion.p
+                      variants={contentReveal}
+                      className="text-sm text-gray-600 text-center leading-relaxed mb-4 max-w-md mx-auto"
                     >
-                      <Volume2 className="h-4 w-4 inline mr-1.5" />{t('listenBtn')}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={onQuiz}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-400 to-cyan-400 text-white rounded-xl font-medium hover:shadow-lg transition-all font-fredoka text-sm shadow-md"
+                      {getDescInLang(result, language)}
+                    </motion.p>
+
+                    {/* Fun Fact with section accent styling */}
+                    <motion.div
+                      variants={contentReveal}
+                      className="p-4 rounded-2xl border mb-5"
+                      style={{
+                        background: `linear-gradient(135deg, ${activeColor}10, ${activeColor}05)`,
+                        borderColor: `${activeColor}30`,
+                      }}
                     >
-                      🧠 {t('quizBtn')}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={onPuzzle}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded-xl font-medium hover:shadow-lg transition-all font-fredoka text-sm shadow-md"
-                    >
-                      🧩 {t('puzzleBtn')}
-                    </motion.button>
-                  </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        </motion.div>
+                        <span className="text-xs font-bold font-fredoka" style={{ color: activeColor }}>
+                          {t('funFact')}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed" style={{ color: `${activeColor}cc` }}>
+                        {getFactInLang(result, language)}
+                      </p>
+                    </motion.div>
+
+                    {/* Action Buttons */}
+                    <motion.div variants={contentReveal} className="flex justify-center gap-3 flex-wrap">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onListen}
+                        className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
+                        style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                      >
+                        <Volume2 className="h-4 w-4 inline mr-1.5" />{t('listenBtn')}
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onQuiz}
+                        className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
+                        style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
+                      >
+                        🧠 {t('quizBtn')}
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onPuzzle}
+                        className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
+                        style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+                      >
+                        🧩 {t('puzzleBtn')}
+                      </motion.button>
+                    </motion.div>
+                  </motion.div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

@@ -45,6 +45,7 @@ interface HomeTabProps {
   getNameInLang: (item: IdentifyResult, lang: string) => string;
   getDescInLang: (item: IdentifyResult, lang: string) => string;
   getFactInLang: (item: IdentifyResult, lang: string) => string;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
 }
 
 export default function HomeTab({
@@ -73,36 +74,50 @@ export default function HomeTab({
   getNameInLang,
   getDescInLang,
   getFactInLang,
+  sectionAccent,
 }: HomeTabProps) {
   const { t } = useTranslation(language);
 
   return (
     <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pb-2">
-      {/* Camera View */}
-      <CameraView
-        videoRef={videoRef}
-        canvasRef={canvasRef}
-        fileInputRef={fileInputRef}
-        cameraActive={cameraActive}
-        capturedImage={capturedImage}
-        currentResult={currentResult}
-        isIdentifying={isIdentifying}
-        error={error}
-        cameraLoading={cameraLoading}
-        cameraSupported={cameraSupported}
-        imageRotation={imageRotation}
-        facingMode={facingMode}
-        onStartCamera={onStartCamera}
-        onStopCamera={() => {}}
-        onSwitchCamera={onSwitchCamera}
-        onCapture={onCapture}
-        onRotateImage={onRotateImage}
-        onResetView={onResetView}
-        onFileUpload={(e) => onFileInputChange(e)}
-        onSpeakTTS={onSpeakTTS}
-        t={t}
-        language={language}
-      />
+      {/* Camera View - Centered Hero Card */}
+      <div className="max-w-lg mx-auto px-1">
+        <div
+          className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-xl border border-white/50"
+          style={sectionAccent ? { boxShadow: `0 8px 32px ${sectionAccent.hex}20` } : {}}
+        >
+          {/* Radial glow behind */}
+          <div
+            className="absolute inset-0 pointer-events-none rounded-3xl opacity-30 -z-10"
+            style={sectionAccent ? { background: `radial-gradient(circle, ${sectionAccent.hex}40 0%, transparent 70%)` } : {}}
+          />
+          <CameraView
+            videoRef={videoRef}
+            canvasRef={canvasRef}
+            fileInputRef={fileInputRef}
+            cameraActive={cameraActive}
+            capturedImage={capturedImage}
+            currentResult={currentResult}
+            isIdentifying={isIdentifying}
+            error={error}
+            cameraLoading={cameraLoading}
+            cameraSupported={cameraSupported}
+            imageRotation={imageRotation}
+            facingMode={facingMode}
+            onStartCamera={onStartCamera}
+            onStopCamera={() => {}}
+            onSwitchCamera={onSwitchCamera}
+            onCapture={onCapture}
+            onRotateImage={onRotateImage}
+            onResetView={onResetView}
+            onFileUpload={(e) => onFileInputChange(e)}
+            onSpeakTTS={onSpeakTTS}
+            t={t}
+            language={language}
+            sectionAccent={sectionAccent}
+          />
+        </div>
+      </div>
 
       {/* Action Buttons */}
       <CameraActions
@@ -120,6 +135,7 @@ export default function HomeTab({
         onStartCamera={() => onStartCamera()}
         language={language}
         t={t}
+        sectionAccent={sectionAccent}
       />
 
       {/* Hidden file input */}
@@ -142,6 +158,7 @@ export default function HomeTab({
           getNameInLang={getNameInLang}
           getDescInLang={getDescInLang}
           getFactInLang={getFactInLang}
+          sectionAccent={sectionAccent}
         />
       )}
     </TabsContent>

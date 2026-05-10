@@ -38,6 +38,7 @@ interface CameraViewProps {
   // Misc
   t: (key: string, params?: Record<string, string | number>) => string;
   language: string;
+  sectionAccent?: { hex: string; rgb: string };
 }
 
 export default function CameraView({
@@ -62,13 +63,15 @@ export default function CameraView({
   onSpeakTTS,
   t,
   language,
+  sectionAccent,
 }: CameraViewProps) {
   const showCameraFeed = cameraActive && !capturedImage;
   const showCaptured = !!capturedImage;
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-black aspect-[4/3] max-h-[45vh] border-4 border-white/20">
+    <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-xl border border-white/50 aspect-[4/3] max-h-[45vh]"
+         style={sectionAccent ? { boxShadow: `0 8px 32px ${sectionAccent.hex}20` } : {}}>
       {/* Camera Feed */}
       <video
         ref={videoRef}
@@ -97,7 +100,8 @@ export default function CameraView({
 
       {/* Placeholder */}
       {showPlaceholder && (
-        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
+        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white gap-3 z-30"
+            style={{ background: sectionAccent ? `linear-gradient(135deg, ${sectionAccent.hex}30 0%, ${sectionAccent.hex}10 100%)` : 'linear-gradient(135deg, #374151 0%, #111827 100%)' }}>
           <motion.div
             animate={{ y: [0, -6, 0], scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
@@ -152,6 +156,16 @@ export default function CameraView({
 
       {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Neon corner brackets */}
+      {sectionAccent && (
+        <>
+          <div className="absolute top-3 left-3 w-6 h-6 border-t-3 border-l-3 rounded-tl-lg" style={{ borderColor: sectionAccent.hex }} />
+          <div className="absolute top-3 right-3 w-6 h-6 border-t-3 border-r-3 rounded-tr-lg" style={{ borderColor: sectionAccent.hex }} />
+          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-3 border-l-3 rounded-bl-lg" style={{ borderColor: sectionAccent.hex }} />
+          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-3 border-r-3 rounded-br-lg" style={{ borderColor: sectionAccent.hex }} />
+        </>
+      )}
     </div>
   );
 }
@@ -172,6 +186,7 @@ interface CameraActionsProps {
   onStartCamera: () => void;
   language: string;
   t: (key: string, params?: Record<string, string | number>) => string;
+  sectionAccent?: { hex: string; rgb: string; gradient: string };
 }
 
 export function CameraActions({
@@ -189,6 +204,7 @@ export function CameraActions({
   onStartCamera,
   language,
   t,
+  sectionAccent,
 }: CameraActionsProps) {
   const getNameInLang = (item: IdentifyResult, lang: string): string => {
     const opts = item.nameOptions;
@@ -209,8 +225,8 @@ export function CameraActions({
     <div className="flex items-center justify-center gap-4">
       {capturedImage && currentResult ? (
         <>
-          <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={onResetView} color="orange" />
-          <Btn icon={<RotateCw className="h-5 w-5" />} onClick={onRotateImage} color="teal" />
+          <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={onResetView} color="orange" sectionAccent={sectionAccent} />
+          <Btn icon={<RotateCw className="h-5 w-5" />} onClick={onRotateImage} color="teal" sectionAccent={sectionAccent} />
           <Btn
             icon={<Volume2 className="h-5 w-5" />}
             onClick={() =>
@@ -219,13 +235,14 @@ export function CameraActions({
               )
             }
             color="purple"
+            sectionAccent={sectionAccent}
           />
         </>
       ) : cameraActive ? (
         <>
-          <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={onSwitchCamera} color="white" />
-          <BigBtn onClick={onCapture} disabled={isIdentifying}>📷</BigBtn>
-          <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={onFileUpload} color="white" />
+          <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={onSwitchCamera} color="white" sectionAccent={sectionAccent} />
+          <BigBtn onClick={onCapture} disabled={isIdentifying} sectionAccent={sectionAccent}>📷</BigBtn>
+          <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={onFileUpload} color="white" sectionAccent={sectionAccent} />
         </>
       ) : (
         <div className="flex items-center gap-3">

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { THEMES } from '@/lib/themes';
+import { THEMES, type ThemeConfig } from '@/lib/themes';
 import {
   Camera, Volume2, VolumeX, RotateCcw, Sparkles, SwitchCamera, ImagePlus,
   Upload, Settings, Star, BookOpen, MessageCircle, Home, Gamepad2,
@@ -75,6 +75,14 @@ const ACHIEVEMENT_DEFS = [
   { type: 'chat_first', emoji: '💬', titleKey: 'achChattyKid', descKey: 'achChattyKidDesc' },
   { type: 'feedback_given', emoji: '⭐', titleKey: 'achHelper', descKey: 'achHelperDesc' },
 ];
+
+const SECTION_COLORS: Record<string, { hex: string; rgb: string; gradient: string }> = {
+  home:    { hex: '#FF6B35', rgb: '255,107,53',  gradient: 'from-orange-400 to-yellow-400' },
+  learn:   { hex: '#00D4FF', rgb: '0,212,255',  gradient: 'from-cyan-400 to-blue-400' },
+  games:   { hex: '#FF2D95', rgb: '255,45,149',  gradient: 'from-pink-500 to-rose-500' },
+  chat:    { hex: '#7FFF00', rgb: '127,255,0',   gradient: 'from-lime-400 to-green-400' },
+  profile: { hex: '#9B5DE5', rgb: '155,93,229',  gradient: 'from-violet-400 to-purple-500' },
+};
 
 // ==================== MAIN APP ====================
 export default function HomePage() {
@@ -195,6 +203,12 @@ export default function HomePage() {
 
   // ---- Theme (needed early for heroBackground) ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+  const sectionAccent = SECTION_COLORS[activeTab] || SECTION_COLORS.home;
+  const themedThemeData: ThemeConfig = {
+    ...currentTheme,
+    accentHex: sectionAccent.hex,
+    accentRgb: sectionAccent.rgb,
+  };
 
   // Memoized emoji positions to avoid hydration mismatch (Math.random() differs between SSR and client)
   const floatingEmojiPositions = useMemo(() =>
@@ -1160,10 +1174,10 @@ export default function HomePage() {
       </div>
 
       {/* Sidebar - desktop only */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={currentTheme} user={user} />
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} user={user} sectionAccent={sectionAccent} />
 
       {/* Main area (Header + Content + Footer) */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen px-4 md:px-0">
         {/* Header */}
         <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
           <div className="relative max-w-2xl mx-auto flex items-center justify-between">
@@ -1228,7 +1242,7 @@ export default function HomePage() {
         </Dialog>
 
         {/* Main Content - responsive width */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 flex flex-col gap-4 overflow-hidden relative z-10">
+        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-20 md:pb-4 flex flex-col gap-4 overflow-hidden relative z-10">
           {/* Home Tab */}
           {activeTab === 'home' && (
             <motion.div
@@ -1259,6 +1273,11 @@ export default function HomePage() {
                 {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
                 {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
                 <canvas ref={canvasRef} className="hidden" />
+                {/* Neon corner brackets */}
+                <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 rounded-tl-lg z-50" style={{ borderColor: sectionAccent.hex }} />
+                <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 rounded-tr-lg z-50" style={{ borderColor: sectionAccent.hex }} />
+                <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 rounded-bl-lg z-50" style={{ borderColor: sectionAccent.hex }} />
+                <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 rounded-br-lg z-50" style={{ borderColor: sectionAccent.hex }} />
               </div>
 
               {/* Action Buttons */}
@@ -1304,25 +1323,25 @@ export default function HomePage() {
                 {currentResult && (
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
                     <Card className={`card-style-${currentTheme.cardStyle} overflow-hidden`}>
-                      <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
-                      <CardContent className="p-4">
+                      <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}aa)` }} />
+                      <CardContent className="p-4" style={{ borderColor: `${sectionAccent.hex}20` }}>
                         <div className="flex items-start gap-3">
                           <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{getNameInLang(currentResult, language)}</h2>
+                              <h2 className="text-lg sm:text-xl font-extrabold" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}aa)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{getNameInLang(currentResult, language)}</h2>
                               <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
                               {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
                             </div>
                             <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
-                            <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
-                              <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
-                              <p className="text-xs text-yellow-800">{getFactInLang(currentResult, language)}</p>
+                            <div className="mt-2 p-2 rounded-xl border" style={{ background: `${sectionAccent.hex}08`, borderColor: `${sectionAccent.hex}30` }}>
+                              <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold" style={{ color: sectionAccent.hex }}>{t('funFact')}</span></div>
+                              <p className="text-xs" style={{ color: sectionAccent.hex }}>{getFactInLang(currentResult, language)}</p>
                             </div>
                             <div className="flex gap-2 mt-3">
-                              <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
-                              <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
-                              <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
+                              <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ background: `${sectionAccent.hex}15`, color: sectionAccent.hex }}>👂 {t('listenBtn')}</button>
+                              <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)`, color: 'white' }}>🧠 {t('quizBtn')}</button>
+                              <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ background: '#8b5cf6', color: 'white' }}>🧩 {t('puzzleBtn')}</button>
                             </div>
                           </div>
                         </div>
@@ -1651,7 +1670,7 @@ export default function HomePage() {
 
       {/* Mobile Tab Bar - mobile only */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={currentTheme} language={language} />
+        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} sectionAccent={sectionAccent} language={language} />
       </div>
     </div>
   );
