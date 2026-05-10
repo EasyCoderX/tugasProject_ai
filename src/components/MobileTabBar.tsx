@@ -9,7 +9,6 @@ interface MobileTabBarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   themeData: ThemeConfig;
-  sectionAccent?: { hex: string; rgb: string; gradient: string };
   language?: string;
 }
 
@@ -21,19 +20,32 @@ const navItems = [
   { id: 'profile', icon: User, label: 'me' },
 ];
 
-export default function MobileTabBar({ activeTab, onTabChange, themeData, sectionAccent, language = 'en' }: MobileTabBarProps) {
+export default function MobileTabBar({ activeTab, onTabChange, themeData, language = 'en' }: MobileTabBarProps) {
   const { t } = useTranslation(language);
-  const activeColor = sectionAccent?.hex || themeData.accentHex;
-  const activeRgb = sectionAccent?.rgb || themeData.accentRgb;
+
+  // Theme-driven colors — uses the selected theme's accent
+  const accent = themeData.accentHex;
+  const accentRgb = themeData.accentRgb;
+  const isDark = themeData.textHex === '#f8fafc' || themeData.textHex === '#ffffff' || themeData.bg.includes('900') || themeData.bg.includes('950');
+
+  // Background adapts to theme brightness
+  const bgStyle = isDark
+    ? `linear-gradient(180deg, ${accent}15 0%, rgba(15,23,42,0.96) 100%)`
+    : `linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(${accentRgb}, 0.06) 100%)`;
+
+  const activeText = themeData.textHex;
+  const inactiveText = isDark ? 'rgba(248,250,252,0.4)' : '#9ca3af';
 
   return (
     <motion.div
       initial={{ y: 100 }}
       animate={{ y: 0 }}
-      className="bg-white/90 backdrop-blur-xl border-t-2 shadow-2xl pb-safe"
+      className="border-t-2 shadow-2xl pb-safe"
       style={{
-        borderColor: `rgba(${activeRgb}, 0.2)`,
-        background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(${activeRgb}, 0.05) 100%)`,
+        background: bgStyle,
+        backdropFilter: isDark ? 'blur(24px) saturate(160%)' : 'blur(20px)',
+        WebkitBackdropFilter: isDark ? 'blur(24px) saturate(160%)' : 'blur(20px)',
+        borderColor: isDark ? `${accent}30` : `${accentRgb}20`,
       }}
     >
       <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
@@ -45,20 +57,18 @@ export default function MobileTabBar({ activeTab, onTabChange, themeData, sectio
               key={item.id}
               onClick={() => onTabChange(item.id)}
               whileTap={{ scale: 0.9 }}
-              className={`flex flex-col items-center justify-center gap-0.5 relative ${
-                isActive ? '' : 'text-gray-400'
-              }`}
-              style={{
-                color: isActive ? 'white' : undefined,
-              }}
+              className="flex flex-col items-center justify-center gap-0.5 relative transition-colors"
+              style={{ color: isActive ? activeText : inactiveText }}
             >
               {isActive && (
                 <motion.div
                   layoutId="mobileActiveTab"
                   className="absolute inset-1 rounded-xl -z-10"
                   style={{
-                    background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)`,
-                    boxShadow: `0 4px 15px ${activeColor}40`,
+                    background: isDark
+                      ? `linear-gradient(135deg, ${accent}28, ${accent}18)`
+                      : `linear-gradient(135deg, ${accent}, ${accent}cc)`,
+                    boxShadow: `0 4px 16px ${accent}40`,
                   }}
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />

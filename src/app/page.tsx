@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useTranslation, type Lang } from '@/lib/i18n';
 import Confetti from '@/components/Confetti';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
+import ResultCard from '@/components/ResultCard';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -203,12 +204,12 @@ export default function HomePage() {
 
   // ---- Theme (needed early for heroBackground) ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // Sidebar/MobileTabBar use the actual selected theme color
+  const themedThemeData: ThemeConfig = currentTheme;
+
+  // Section accent still used by CameraView corner brackets and ResultCard
   const sectionAccent = SECTION_COLORS[activeTab] || SECTION_COLORS.home;
-  const themedThemeData: ThemeConfig = {
-    ...currentTheme,
-    accentHex: sectionAccent.hex,
-    accentRgb: sectionAccent.rgb,
-  };
 
   // Memoized emoji positions to avoid hydration mismatch (Math.random() differs between SSR and client)
   const floatingEmojiPositions = useMemo(() =>
@@ -1174,7 +1175,7 @@ export default function HomePage() {
       </div>
 
       {/* Sidebar - desktop only */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} user={user} sectionAccent={sectionAccent} />
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} user={user} />
 
       {/* Main area (Header + Content + Footer) */}
       <div className="flex-1 flex flex-col min-h-screen px-4 md:px-0">
@@ -1319,37 +1320,17 @@ export default function HomePage() {
               </div>
 
               {/* Result Card */}
-              <AnimatePresence>
-                {currentResult && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
-                    <Card className={`card-style-${currentTheme.cardStyle} overflow-hidden`}>
-                      <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}aa)` }} />
-                      <CardContent className="p-4" style={{ borderColor: `${sectionAccent.hex}20` }}>
-                        <div className="flex items-start gap-3">
-                          <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h2 className="text-lg sm:text-xl font-extrabold" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}aa)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{getNameInLang(currentResult, language)}</h2>
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
-                              {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
-                            </div>
-                            <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
-                            <div className="mt-2 p-2 rounded-xl border" style={{ background: `${sectionAccent.hex}08`, borderColor: `${sectionAccent.hex}30` }}>
-                              <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold" style={{ color: sectionAccent.hex }}>{t('funFact')}</span></div>
-                              <p className="text-xs" style={{ color: sectionAccent.hex }}>{getFactInLang(currentResult, language)}</p>
-                            </div>
-                            <div className="flex gap-2 mt-3">
-                              <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ background: `${sectionAccent.hex}15`, color: sectionAccent.hex }}>👂 {t('listenBtn')}</button>
-                              <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)`, color: 'white' }}>🧠 {t('quizBtn')}</button>
-                              <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ background: '#8b5cf6', color: 'white' }}>🧩 {t('puzzleBtn')}</button>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <ResultCard
+                result={currentResult}
+                language={language}
+                onListen={() => { setActiveTab('learn'); startListen(); }}
+                onQuiz={() => { setActiveTab('games'); startQuiz(); }}
+                onPuzzle={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }}
+                getNameInLang={getNameInLang}
+                getDescInLang={getDescInLang}
+                getFactInLang={getFactInLang}
+                sectionAccent={sectionAccent}
+              />
             </motion.div>
           )}
 
@@ -1670,7 +1651,7 @@ export default function HomePage() {
 
       {/* Mobile Tab Bar - mobile only */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} sectionAccent={sectionAccent} language={language} />
+        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} language={language} />
       </div>
     </div>
   );

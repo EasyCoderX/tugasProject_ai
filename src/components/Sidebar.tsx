@@ -12,7 +12,6 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   themeData: ThemeConfig;
   user: UserInfo | null;
-  sectionAccent: { hex: string; rgb: string; gradient: string };
 }
 
 const navItems = [
@@ -23,11 +22,34 @@ const navItems = [
   { id: 'profile', icon: User, label: 'me' },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, themeData, user, sectionAccent }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, themeData, user }: SidebarProps) {
   const { t } = useTranslation(user?.language || 'en');
   const [collapsed, setCollapsed] = useState(false);
 
   const initials = (user?.displayName || user?.username || 'G').charAt(0).toUpperCase();
+
+  // Theme accent — sidebar adopts the selected theme's color
+  const accent = themeData.accentHex;
+  const accentRgb = themeData.accentRgb;
+  const isDark = themeData.textHex === '#f8fafc' || themeData.textHex === '#ffffff' || themeData.bg.includes('900') || themeData.bg.includes('950');
+
+  // Text colors from theme
+  const labelText = themeData.textHex;
+  const iconMuted = isDark ? 'rgba(248,250,252,0.45)' : '#9ca3af';
+
+  // Background: theme-aware glass
+  const sidebarBg = isDark
+    ? `linear-gradient(180deg, ${accent}15 0%, rgba(15,23,42,0.94) 40%, rgba(30,41,59,0.97) 100%)`
+    : `linear-gradient(180deg, ${accent}08 0%, rgba(255,255,255,0.94) 40%, rgba(255,255,255,0.99) 100%)`;
+
+  const borderColor = isDark ? `${accent}25` : `${accent}18`;
+
+  // Active item: theme accent with glow
+  const activeBg = isDark
+    ? `linear-gradient(135deg, ${accent}28, ${accent}18)`
+    : `linear-gradient(135deg, ${accent}, ${accent}cc)`;
+
+  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
 
   return (
     <motion.aside
@@ -36,14 +58,14 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="hidden md:flex flex-col h-screen sticky top-0 z-40 border-r-2 overflow-hidden"
       style={{
-        background: `linear-gradient(180deg, rgba(${sectionAccent.rgb}, 0.08) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.95) 100%)`,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderColor: `rgba(${sectionAccent.rgb}, 0.15)`,
+        background: sidebarBg,
+        backdropFilter: isDark ? 'blur(24px) saturate(160%)' : 'blur(20px)',
+        WebkitBackdropFilter: isDark ? 'blur(24px) saturate(160%)' : 'blur(20px)',
+        borderColor,
       }}
     >
-      {/* Logo area */}
-      <div className="flex items-center gap-3 p-4 border-b-2" style={{ borderColor: `rgba(${sectionAccent.rgb}, 0.15)` }}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 p-4 border-b-2" style={{ borderColor }}>
         <motion.div
           animate={{ rotate: [0, 10, -10, 0] }}
           transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
@@ -58,7 +80,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
               animate={{ opacity: 1, width: 'auto' }}
               exit={{ opacity: 0, width: 0 }}
               className="font-black text-sm whitespace-nowrap font-fredoka"
-              style={{ color: 'var(--kid-accent-hex)' }}
+              style={{ color: accent }}
             >
               What's This?
             </motion.span>
@@ -75,19 +97,20 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
             <motion.button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 relative overflow-hidden whitespace-nowrap ${
-                isActive ? 'text-white shadow-lg' : 'text-gray-600 hover:bg-white/50'
-              }`}
+              whileHover={{ scale: 1.04, background: isActive ? undefined : hoverBg }}
+              whileTap={{ scale: 0.96 }}
+              className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 relative overflow-hidden whitespace-nowrap ${collapsed ? 'justify-center' : ''}`}
               style={{
-                background: isActive
-                  ? `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)`
-                  : 'transparent',
-                boxShadow: isActive ? `0 8px 24px ${sectionAccent.hex}50` : 'none',
+                background: isActive ? activeBg : 'transparent',
+                boxShadow: isActive ? `0 4px 20px ${accent}40, inset 0 0 0 1px ${accent}30` : 'none',
+                color: isActive ? labelText : labelText,
+                padding: collapsed ? '0.75rem' : undefined,
               }}
             >
-              <Icon className="h-5 w-5 flex-shrink-0" />
+              <Icon
+                className="h-5 w-5 flex-shrink-0"
+                style={{ color: isActive ? labelText : iconMuted }}
+              />
               <AnimatePresence>
                 {!collapsed && (
                   <motion.span
@@ -95,17 +118,24 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
                     animate={{ opacity: 1, width: 'auto' }}
                     exit={{ opacity: 0, width: 0 }}
                     className="font-bold text-sm font-fredoka"
+                    style={{ color: isActive ? labelText : iconMuted }}
                   >
                     {t(item.label)}
                   </motion.span>
                 )}
               </AnimatePresence>
+
+              {/* Left-edge glow pill when active */}
               {isActive && (
                 <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 rounded-2xl -z-10"
-                  style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}, ${sectionAccent.hex}cc)` }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  layoutId="sidebarActivePill"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full"
+                  style={{
+                    background: `linear-gradient(180deg, ${accent}, ${accent}50)`,
+                    boxShadow: `0 0 12px ${accent}80`,
+                    height: '60%',
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
             </motion.button>
@@ -113,20 +143,20 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
         })}
       </nav>
 
-      {/* Bottom section: Theme + User + Collapse */}
-      <div className="p-2 border-t-2 space-y-2" style={{ borderColor: `rgba(${sectionAccent.rgb}, 0.15)` }}>
-        {/* Theme button */}
+      {/* Bottom: Theme + User + Collapse */}
+      <div className="p-2 border-t-2 space-y-2" style={{ borderColor }}>
+        {/* Theme switcher */}
         <motion.button
           onClick={() => {
-            // Trigger theme portal - will be handled by parent
             const event = new CustomEvent('open-theme-portal');
             window.dispatchEvent(event);
           }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-3 px-3 py-3 rounded-2xl w-full text-gray-600 hover:bg-white/50 transition-all"
+          whileHover={{ scale: 1.04, background: hoverBg }}
+          whileTap={{ scale: 0.96 }}
+          className={`flex items-center gap-3 px-3 py-3 rounded-2xl w-full transition-all ${collapsed ? 'justify-center' : ''}`}
+          style={{ color: iconMuted, background: 'transparent', padding: collapsed ? '0.75rem' : undefined }}
         >
-          <Palette className="h-5 w-5 flex-shrink-0" />
+          <Palette className="h-5 w-5 flex-shrink-0" style={{ color: iconMuted }} />
           <AnimatePresence>
             {!collapsed && (
               <motion.span
@@ -134,6 +164,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 className="font-bold text-sm font-fredoka whitespace-nowrap"
+                style={{ color: iconMuted }}
               >
                 {themeData.emoji} {themeData.name}
               </motion.span>
@@ -144,13 +175,17 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
         {/* User avatar */}
         {user && (
           <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 px-3 py-2 rounded-2xl cursor-pointer"
-            style={{ background: `rgb(var(--kid-accent-rgb) / 0.1)` }}
+            whileHover={{ scale: 1.04, background: hoverBg }}
+            className={`flex items-center gap-3 px-3 py-2 rounded-2xl cursor-pointer transition-all ${collapsed ? 'justify-center' : ''}`}
+            style={{ background: 'transparent', padding: collapsed ? '0.5rem' : undefined }}
           >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${themeData.accentHex}, ${themeData.accentHex}80)` }}
+              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${accent}, ${accent}80)`,
+                color: isDark ? '#0f172a' : '#ffffff',
+                boxShadow: `0 2px 10px ${accent}40`,
+              }}
             >
               {initials}
             </div>
@@ -162,11 +197,11 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
                   exit={{ opacity: 0, width: 0 }}
                   className="whitespace-nowrap overflow-hidden"
                 >
-                  <p className="font-bold text-xs font-fredoka text-gray-700 truncate">
+                  <p className="font-bold text-xs font-fredoka truncate" style={{ color: labelText }}>
                     {user.displayName || user.username}
                   </p>
                   {user.isPro && (
-                    <p className="text-[10px] text-yellow-600 font-medium">PRO</p>
+                    <p className="text-[10px] font-medium" style={{ color: accent }}>PRO</p>
                   )}
                 </motion.div>
               )}
@@ -177,9 +212,10 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user, secti
         {/* Collapse toggle */}
         <motion.button
           onClick={() => setCollapsed(!collapsed)}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center justify-center w-full py-2 rounded-2xl text-gray-400 hover:bg-white/50 transition-all"
+          whileHover={{ scale: 1.04, background: hoverBg }}
+          whileTap={{ scale: 0.96 }}
+          className="flex items-center justify-center w-full py-2 rounded-2xl transition-all"
+          style={{ color: iconMuted, background: 'transparent', padding: collapsed ? '0.75rem' : undefined }}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </motion.button>
