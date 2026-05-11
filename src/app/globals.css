@@ -6,7 +6,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
   --font-fredoka: var(--font-fredoka);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -92,6 +92,33 @@
   --kid-shadow-color: rgba(251, 146, 60, 0.3);
   --kid-card-bg: rgba(255, 255, 255, 0.9);
   --kid-pattern-opacity: 0;
+
+  /* Card tokens */
+  --card-radius: 28px;
+  --card-border: rgba(0,0,0,0.06);
+  --card-highlight: inset 0 1px 0 rgba(255,255,255,0.25);
+  --card-topper-height: 4px;
+  --card-shadow-color: rgba(0,0,0,0.08);
+  --card-topper-start: #fb923c;
+  --card-topper-end: #fdba74;
+
+  /* Button tokens — accent defaults to first theme color */
+  --btn-accent: #fb923c;
+  --btn-accent-light: #fdba74;
+  --btn-shadow: rgba(251,146,60,0.3);
+  --icon-btn-bg: rgba(251,146,60,0.12);
+
+  /* Bubble text token */
+  --bubble-shadow: rgba(251,146,60,0.35);
+
+  /* Content area background token */
+  --content-bg: rgba(255,255,255,0.6);
+
+  /* Blob color tokens */
+  --blob-color-1: #fb923c;
+  --blob-color-2: #fdba74;
+  --blob-color-3: #f97316;
+  --blob-color-4: #fbbf24;
 }
 
 .dark {
@@ -130,6 +157,7 @@
   --kid-accent-light: oklch(0.25 0.05 80);
   --kid-card-bg: rgba(30, 30, 40, 0.9);
   --kid-shadow-color: rgba(251, 146, 60, 0.2);
+  --content-bg: rgba(15,23,42,0.5);
 }
 
 /* ==================== THEME-SPECIFIC VARIABLES ==================== */
@@ -287,7 +315,57 @@
 
   .font-fredoka {
     font-family: var(--font-fredoka);
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
+}
+
+/* Bubble text — white text with thick colored drop-shadow */
+.text-bubble {
+  color: white;
+  text-shadow: 0 2px 8px var(--bubble-shadow, rgba(0,0,0,0.3));
+}
+
+/* Primary pill button */
+.btn-primary {
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--btn-accent), var(--btn-accent-light));
+  color: white;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    0 2px 8px var(--btn-shadow);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.btn-primary:active {
+  transform: scale(0.93);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+}
+
+/* Icon button — 44px circular glass */
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-btn-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.15s ease;
+  cursor: pointer;
+}
+.btn-icon:hover {
+  transform: scale(1.08);
+}
+.btn-icon:active {
+  transform: scale(0.93);
 }
 
 /* ==================== THEME BUTTON RADIUS ==================== */
@@ -562,7 +640,40 @@
   z-index: 0;
 }
 
-/* ==================== CARD STYLE VARIATIONS ==================== */
+/* ── 9. HERO CAMERA CARD ────────────────────────────────────────────── */
+/* Breathing glow — pulses box-shadow while camera is active */
+@keyframes camera-breathing {
+  0%, 100% { box-shadow: 0 0 8px var(--kid-accent-hex, #fb923c), 0 0 16px rgba(251,146,60,0.25); }
+  50%       { box-shadow: 0 0 16px var(--kid-accent-hex, #fb923c), 0 0 36px rgba(251,146,60,0.40); }
+}
+
+/* Scan sweep — horizontal gradient line sweeping top to bottom on loop */
+@keyframes scan-sweep {
+  0%   { top: 0;   opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Confetti burst — particles spray from center of the button */
+.confetti-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.confetti-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ── 10. INSTRUCTION HINT BUBBLE ──────────────────────────────────────── */
 [data-theme="candy"] .card-kid {
   border-radius: var(--radius-2xl, 1rem);
   border: 4px dashed var(--kid-accent-hex);
@@ -581,6 +692,29 @@
   width: 6px;
 }
 
+/* Hide scrollbar on theme switcher row */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Theme transition — radial wipe from click origin */
+@keyframes theme-wipe {
+  0%   { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+.theme-transition-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle, var(--theme-flash-color, #fb923c) 0%, transparent 70%);
+  pointer-events: none;
+  animation: theme-wipe 400ms ease-out forwards;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -594,8 +728,128 @@
   background: rgb(var(--kid-accent-rgb) / 0.5);
 }
 
+/* ==================== RIPPLE EFFECT ==================== */
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+  transform: scale(0);
+  animation: ripple-expand 600ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple-expand {
+  0%   { transform: scale(0); opacity: 0.3; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Glass card with color bar topper */
+.card-glass {
+  border-radius: var(--card-radius);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid var(--card-border);
+  box-shadow: var(--card-highlight), 0 8px 32px var(--card-shadow-color);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Color bar topper */
+.card-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--card-topper-height);
+  background: linear-gradient(90deg, var(--card-topper-start), var(--card-topper-end));
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  pointer-events: none;
+}
+
+/* Dark theme override */
+.dark .card-glass {
+  --card-border: rgba(255,255,255,0.18);
+  --card-shadow-color: rgba(0,0,0,0.3);
+}
+
 /* ==================== SELECTION COLOR ==================== */
 ::selection {
   background: rgb(var(--kid-accent-rgb) / 0.3);
   color: inherit;
+}
+
+/* ==================== Background Depth System ==================== */
+
+/* SVG blob mesh — 4 slow-drifting organic shapes, CSS-only */
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-blobs svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+/* Each blob drifts independently */
+.blob-1 {
+  animation: blob-drift-1 20s ease-in-out infinite alternate;
+  opacity: 0.15;
+}
+.blob-2 {
+  animation: blob-drift-2 20s ease-in-out infinite alternate;
+  animation-delay: -5s;
+  opacity: 0.12;
+}
+.blob-3 {
+  animation: blob-drift-3 20s ease-in-out infinite alternate;
+  animation-delay: -10s;
+  opacity: 0.14;
+}
+.blob-4 {
+  animation: blob-drift-4 20s ease-in-out infinite alternate;
+  animation-delay: -15s;
+  opacity: 0.12;
+}
+@keyframes blob-drift-1 {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  100% { transform: translate(8%, -6%) scale(1.08); }
+}
+@keyframes blob-drift-2 {
+  0%   { transform: translate(0%, 0%) scale(1.05); }
+  100% { transform: translate(-6%, 8%) scale(0.95); }
+}
+@keyframes blob-drift-3 {
+  0%   { transform: translate(0%, 0%) scale(0.95); }
+  100% { transform: translate(5%, 5%) scale(1.05); }
+}
+@keyframes blob-drift-4 {
+  0%   { transform: translate(0%, 0%) scale(1.02); }
+  100% { transform: translate(-4%, -4%) scale(0.98); }
+}
+
+/* Dot-grid texture — subtle tactile depth */
+.bg-texture {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='1' fill='%23000' fill-opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 40px 40px;
+}
+
+/* Content area — slight contrast from shell, inset shadow border */
+.bg-content {
+  position: relative;
+  z-index: 2;
+  background: var(--content-bg, rgba(255,255,255,0.6));
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.04);
+  border-radius: 24px 24px 0 0;
+  overflow: visible;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type React } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { THEMES, type ThemeConfig } from '@/lib/themes';
 import {
@@ -24,6 +24,7 @@ import { useTranslation, type Lang } from '@/lib/i18n';
 import Confetti from '@/components/Confetti';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
 import ResultCard from '@/components/ResultCard';
+import ThemeSwatchSwitcher from '@/components/ui/ThemeSwatchSwitcher';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -110,6 +111,14 @@ export default function HomePage() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [imageRotation, setImageRotation] = useState(0);
+  const [confetti, setConfetti] = useState(false);
+
+  // Confetti trigger
+  const handleCapture = () => {
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 900);
+    captureAndIdentify();
+  };
 
   // Identify state
   const [isIdentifying, setIsIdentifying] = useState(false);
@@ -173,13 +182,38 @@ export default function HomePage() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [themeFlash, setThemeFlash] = useState(false);
 
-  // Set data-theme attribute for CSS theming
+  // Set data-theme attribute and CSS custom properties for theming
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', theme);
+      // Resolve theme object inline (theme state is already in dependency array)
+      const t = THEMES.find(th => th.id === theme) || THEMES[0];
+      const isDark = t.textHex === '#f8fafc' || t.textHex === '#ffffff' || t.bg.includes('900') || t.bg.includes('950');
+
+      // Button tokens
+      document.documentElement.style.setProperty('--btn-accent', t.accentHex);
+      document.documentElement.style.setProperty('--btn-accent-light', t.accentHex + 'cc');
+      document.documentElement.style.setProperty('--btn-shadow', t.accentHex + '4d');
+      document.documentElement.style.setProperty('--icon-btn-bg', t.accentHex + '1f');
+      document.documentElement.style.setProperty('--bubble-shadow', t.accentHex + '59');
+
+      // Card tokens
+      document.documentElement.style.setProperty('--card-border', isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.06)');
+      document.documentElement.style.setProperty('--card-shadow-color', isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)');
+      document.documentElement.style.setProperty('--card-topper-start', t.accentHex);
+      document.documentElement.style.setProperty('--card-topper-end', t.accentHex + '99');
     }
   }, [theme]);
+
+  // Theme transition flash
+  useEffect(() => {
+    if (themeFlash) {
+      const timer = setTimeout(() => setThemeFlash(false), 450);
+      return () => clearTimeout(timer);
+    }
+  }, [themeFlash]);
 
   // Celebration state for achievements
   const [showConfetti, setShowConfetti] = useState(false);
@@ -220,6 +254,20 @@ export default function HomePage() {
       duration: 8 + i * 2,
       index: i,
     })), []
+  );
+
+  // Memoized background particle animations (stable across re-renders to prevent flickering)
+  const backgroundParticles = useMemo(() =>
+    Array.from({ length: 8 }).map((_, i) => ({
+      y: [0, -20 - Math.random() * 30, 0],
+      x: [0, (Math.random() - 0.5) * 40, 0],
+      rotate: [0, (Math.random() - 0.5) * 40, 0],
+      duration: 6 + Math.random() * 6,
+      delay: i * 0.8,
+      top: `${10 + Math.random() * 80}%`,
+      left: `${5 + Math.random() * 90}%`,
+    })),
+    [] // empty deps = runs once on mount
   );
 
   // Animated gradient background style
@@ -1132,6 +1180,13 @@ export default function HomePage() {
 
   return (
     <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }}>
+      {/* Theme transition flash */}
+      {themeFlash && (
+        <div
+          className="theme-transition-flash"
+          style={{ '--theme-flash-color': (THEMES.find(t => t.id === theme)?.accentHex || '#fb923c') + '30' } as React.CSSProperties}
+        />
+      )}
       {/* Celebration Overlay - rendered here for main app view */}
       <CelebrationOverlay
         isOpen={celebration.isOpen}
@@ -1149,24 +1204,24 @@ export default function HomePage() {
 
       {/* Animated background decorations */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {backgroundParticles.map((anim, i) => (
           <motion.div
             key={i}
             animate={{
-              y: [0, -20 - Math.random() * 30, 0],
-              x: [0, (Math.random() - 0.5) * 40, 0],
-              rotate: [0, (Math.random() - 0.5) * 40, 0],
+              y: anim.y,
+              x: anim.x,
+              rotate: anim.rotate,
             }}
             transition={{
-              duration: 6 + Math.random() * 6,
+              duration: anim.duration,
               repeat: Infinity,
-              delay: i * 0.8,
+              delay: anim.delay,
               ease: "easeInOut",
             }}
             className="absolute text-2xl opacity-20"
             style={{
-              top: `${10 + Math.random() * 80}%`,
-              left: `${5 + Math.random() * 90}%`,
+              top: anim.top,
+              left: anim.left,
             }}
           >
             {currentTheme.emoji}
@@ -1209,14 +1264,10 @@ export default function HomePage() {
               {user?.isPro && (
                 <div>
                   <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {THEMES.map(tm => (
-                      <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
-                        className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                        {tm.emoji} {tm.name}
-                      </button>
-                    ))}
-                  </div>
+                  <ThemeSwatchSwitcher
+                    currentTheme={theme}
+                    onThemeChange={(id) => { setTheme(id); setThemeFlash(true); user?.id !== 'guest' ? updateProfile({ theme: id }) : localStorage.setItem('theme', id); }}
+                  />
                 </div>
               )}
               <div>
@@ -1243,19 +1294,62 @@ export default function HomePage() {
         </Dialog>
 
         {/* Main Content - responsive width */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-20 md:pb-4 flex flex-col gap-4 overflow-hidden relative z-10">
+        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-20 md:pb-4 flex flex-col gap-4 relative z-10">
           {/* Home Tab */}
           {activeTab === 'home' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+              className="flex-1 flex flex-col gap-4"
             >
               {/* Camera View */}
-              <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black aspect-[4/3] max-h-[45vh]">
+              <div className="relative" style={{ filter: `drop-shadow(0 8px 32px ${sectionAccent.hex}30)` }}>
+              <div
+                className="relative rounded-3xl overflow-hidden bg-black aspect-[4/3] max-h-[45vh]"
+                style={{
+                  width: '100%',
+                  boxShadow: cameraActive ? `0 0 8px ${sectionAccent.hex}, 0 0 24px ${sectionAccent.hex}40` : 'none',
+                  animation: cameraActive ? 'camera-breathing 2s ease-in-out infinite' : 'none',
+                }}
+              >
+                {/* Scanning line */}
+                {showCameraFeed && (
+                  <div
+                    className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${sectionAccent.hex}, transparent)`,
+                      animation: 'scan-sweep 2s linear infinite',
+                      animationDelay: '0.5s',
+                    }}
+                  />
+                )}
+
+                {(cameraActive || capturedImage) && (
+                  <>
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute top-3 left-3 w-6 h-6 border-t-3 border-l-3 rounded-tl-lg origin-top-left z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.12, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute top-3 right-3 w-6 h-6 border-t-3 border-r-3 rounded-tr-lg origin-top-right z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.24, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute bottom-3 left-3 w-6 h-6 border-b-3 border-l-3 rounded-bl-lg origin-bottom-left z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.36, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute bottom-3 right-3 w-6 h-6 border-b-3 border-r-3 rounded-br-lg origin-bottom-right z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                  </>
+                )}
+
                 <video ref={videoRef} playsInline muted autoPlay
-                  className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`} />
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                  style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                />
                 <AnimatePresence>
                   {showCaptured && (
                     <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1264,41 +1358,84 @@ export default function HomePage() {
                   )}
                 </AnimatePresence>
                 {showPlaceholder && (
-                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
-                    <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
-                    <p className="text-sm font-bold text-center">{t('readyToExplore')}</p>
+                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white gap-3 z-30"
+                    style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}30 0%, ${sectionAccent.hex}10 100%)` }}>
+                    <motion.div animate={{ y: [0, -6, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }} className="text-6xl">📸</motion.div>
+                    <p className="text-base font-bold text-center">{t('readyToExplore')}</p>
                     <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
                   </div>
                 )}
-                {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
-                {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
-                {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
+                {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-12 w-12 text-yellow-400 drop-shadow-lg" /></motion.div></div>}
+                {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-12 w-12 text-yellow-400 drop-shadow-lg" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
+                {error && <div className="absolute bottom-4 left-4 right-4 z-40"><motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/90 text-white px-4 py-2.5 rounded-xl text-xs font-medium text-center backdrop-blur-sm shadow-lg">{error}</motion.div></div>}
                 <canvas ref={canvasRef} className="hidden" />
-                {/* Neon corner brackets */}
-                <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 rounded-tl-lg z-50" style={{ borderColor: sectionAccent.hex }} />
-                <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 rounded-tr-lg z-50" style={{ borderColor: sectionAccent.hex }} />
-                <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 rounded-bl-lg z-50" style={{ borderColor: sectionAccent.hex }} />
-                <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 rounded-br-lg z-50" style={{ borderColor: sectionAccent.hex }} />
+              </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-center gap-3">
+              <div className="relative flex items-center justify-center gap-3">
                 {capturedImage && currentResult ? (
                   <>
                     <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
                     <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
                     <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
                   </>
-                ) : cameraActive ? (
+                ) : (cameraActive || cameraLoading) ? (
                   <>
-                    <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={switchCamera} color="white" />
-                    <BigBtn onClick={captureAndIdentify} disabled={isIdentifying}>📷</BigBtn>
-                    <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={() => fileInputRef.current?.click()} color="white" />
+                    {/* Close camera button - uses theme accent */}
+                    <Button onClick={() => { stopCamera(); setCameraActive(false); }}
+                      className="text-white rounded-full p-4 border border-white/20"
+                      style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
+                      <X className="h-6 w-6" />
+                    </Button>
+
+                    {/* Switch camera button - uses theme accent */}
+                    <Button onClick={switchCamera}
+                      className="text-white rounded-full p-4 border border-white/20"
+                      style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
+                      <SwitchCamera className="h-6 w-6" />
+                    </Button>
+
+                    {/* Capture button with confetti - uses theme accent */}
+                    <div className="relative">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={handleCapture}
+                        disabled={isIdentifying}
+                        className="flex items-center gap-2 px-8 py-4 rounded-full text-white font-bold text-base font-fredoka shadow-lg transition-all hover:shadow-xl cursor-pointer"
+                        style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 6px 24px ${currentTheme.accentHex}50` }}
+                      >
+                        <Camera className="h-6 w-6" />
+                        {/* Confetti particles inside button */}
+                        {confetti && (
+                          <div className="absolute inset-0 pointer-events-none overflow-visible">
+                            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
+                              <motion.div
+                                key={deg}
+                                initial={{ scale: 0, opacity: 1, x: 0, y: 0 }}
+                                animate={{ scale: [0, 1.2, 0], opacity: [1, 1, 0], x: Math.cos((deg * Math.PI) / 180) * 60, y: Math.sin((deg * Math.PI) / 180) * 60 }}
+                                transition={{ duration: 0.5, delay: i * 0.02 }}
+                                className="absolute w-2 h-2 rounded-full"
+                                style={{ background: [currentTheme.accentHex, '#fbbf24', '#34d399', '#f472b6', '#60a5fa'][i % 5], left: '50%', top: '50%' }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </motion.button>
+                    </div>
+
+                    {/* Upload button - uses theme accent */}
+                    <Button onClick={() => fileInputRef.current?.click()}
+                      className="text-white font-bold rounded-full px-6 py-4"
+                      style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}>
+                      <Upload className="h-5 w-5" />
+                    </Button>
                   </>
                 ) : (
                   <div className="flex items-center gap-3">
-                    {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
-                    <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
+                    {cameraSupported && <Button onClick={() => startCamera()} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
+                    <Button onClick={() => fileInputRef.current?.click()} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
@@ -1340,14 +1477,19 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+              className="flex-1 flex flex-col gap-4"
             >
               <div className="space-y-4">
                 <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
 
                 {/* Listen and Pick */}
                 {listenWord && listenOptions.length > 0 ? (
-                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
                     <CardContent className="p-4">
                       <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
                       <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
@@ -1369,10 +1511,17 @@ export default function HomePage() {
                       </div>
                     </CardContent>
                   </Card>
+                  </motion.div>
                 ) : (
-                  <Card className={`card-style-${currentTheme.cardStyle} opacity-60`}><CardContent className="p-4 text-center text-gray-400 text-sm">
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle} opacity-60`}
+                  >
+                  <Card><CardContent className="p-4 text-center text-gray-400 text-sm">
                     {t('identifyFirstListen')}
                   </CardContent></Card>
+                  </motion.div>
                 )}
               </div>
             </motion.div>
@@ -1384,14 +1533,19 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+              className="flex-1 flex flex-col gap-4"
             >
               <div className="space-y-4">
                 <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
 
                 {/* Quiz */}
                 {quizActive ? (
-                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
                     <CardContent className="p-4">
                       <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                       {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
@@ -1446,19 +1600,31 @@ export default function HomePage() {
                       )}
                     </CardContent>
                   </Card>
+                  </motion.div>
                 ) : (
-                  <Card className={`card-style-${currentTheme.cardStyle} cursor-pointer hover:shadow-md transition-shadow`} onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="text-3xl">🧠</div>
                       <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     </CardContent>
                   </Card>
+                  </motion.div>
                 )}
 
                 {/* Puzzle */}
                 {puzzleActive ? (
-                  <Card className={`card-style-${currentTheme.cardStyle}`}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-bold">{t('puzzleChallenge')}</h4>
@@ -1510,14 +1676,21 @@ export default function HomePage() {
                       )}
                     </CardContent>
                   </Card>
+                  </motion.div>
                 ) : (
-                  <Card className={`card-style-${currentTheme.cardStyle} cursor-pointer hover:shadow-md transition-shadow`} onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="text-3xl">🧩</div>
                       <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     </CardContent>
                   </Card>
+                  </motion.div>
                 )}
               </div>
             </motion.div>
@@ -1529,7 +1702,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+              className="flex-1 flex flex-col gap-4"
             >
               <div className={`flex-1 min-h-0 flex flex-col card-style-${currentTheme.cardStyle} overflow-hidden`}>
                 <div className="flex items-center gap-2 p-3 border-b border-gray-100">
@@ -1563,11 +1736,15 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col gap-4 overflow-y-auto pb-2"
+              className="flex-1 flex flex-col gap-4"
             >
               <div className="space-y-4">
                 {/* User Info */}
-                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4 flex items-center gap-4">
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4 flex items-center gap-4">
                   <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
@@ -1575,9 +1752,14 @@ export default function HomePage() {
                     {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
                   </div>
                 </CardContent></Card>
+                </motion.div>
 
                 {/* Achievements */}
-                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
                   <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
                   <div className="grid grid-cols-3 gap-2">
@@ -1591,9 +1773,14 @@ export default function HomePage() {
                     })}
                   </div>
                 </CardContent></Card>
+                </motion.div>
 
                 {/* History */}
-                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
                     {history.length > 0 && (
@@ -1619,9 +1806,14 @@ export default function HomePage() {
                     </div>
                   )}
                 </CardContent></Card>
+                </motion.div>
 
                 {/* Feedback */}
-                <Card className={`card-style-${currentTheme.cardStyle}`}><CardContent className="p-4">
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
                   {feedbackSent ? (
                     <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
@@ -1638,6 +1830,7 @@ export default function HomePage() {
                     </div>
                   )}
                 </CardContent></Card>
+                </motion.div>
               </div>
             </motion.div>
           )}

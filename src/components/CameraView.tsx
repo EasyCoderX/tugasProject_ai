@@ -1,11 +1,10 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Sparkles, RotateCw, SwitchCamera, ImagePlus, RotateCcw, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/lib/i18n';
-import { Btn, BigBtn } from '@/components/ui/action-buttons';
+import { Btn } from '@/components/ui/action-buttons';
 import type { IdentifyResult } from '@/lib/helpers';
 
 interface CameraViewProps {
@@ -55,6 +54,7 @@ export default function CameraView({
   imageRotation,
   facingMode,
   onStartCamera,
+  onStopCamera,
   onSwitchCamera,
   onCapture,
   onRotateImage,
@@ -65,13 +65,97 @@ export default function CameraView({
   language,
   sectionAccent,
 }: CameraViewProps) {
-  const showCameraFeed = cameraActive && !capturedImage;
-  const showCaptured = !!capturedImage;
+  const showCameraFeed  = cameraActive && !capturedImage;
+  const showCaptured   = !!capturedImage;
   const showPlaceholder = !cameraActive && !capturedImage;
 
+  // ── 9. HERO CAMERA CARD — neon corner bracket mount animation ──────────
+  const bracketVariants = {
+    hidden: { scaleX: 0, scaleY: 0 },
+    visible: (i: number) => ({
+      scaleX: 1,
+      scaleY: 1,
+      transition: {
+        delay: i * 0.12,
+        type: 'spring' as const,
+        stiffness: 260,
+        damping: 22,
+      },
+    }),
+  };
+
   return (
-    <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-xl border border-white/50 aspect-[4/3] max-h-[45vh]"
-         style={sectionAccent ? { boxShadow: `0 8px 32px ${sectionAccent.hex}20` } : {}}>
+    <div
+      className="relative rounded-3xl overflow-hidden bg-white/90 backdrop-blur-xl border border-white/50 aspect-[4/3] max-h-[45vh]"
+      style={{
+        // ── Breathing glow while camera is active ──
+        boxShadow: cameraActive
+          ? `0 0 8px ${sectionAccent?.hex ?? '#fb923c'}, 0 0 24px ${sectionAccent?.hex ?? '#fb923c'}40`
+          : 'none',
+        animation: cameraActive ? 'camera-breathing 2s ease-in-out infinite' : 'none',
+      }}
+    >
+      {/* ── Scanning line (only when camera feed is live) ── */}
+      <AnimatePresence>
+        {showCameraFeed && (
+          <motion.div
+            key="scanline"
+            initial={{ y: '-100%', opacity: 0 }}
+            animate={{ y: '100%', opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0, opacity: { duration: 0.3 } }}
+            className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${sectionAccent?.hex ?? '#fb923c'}, transparent)`,
+              animation: 'scan-sweep 2s linear infinite',
+              animationDelay: '0.5s',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Neon corner brackets — staggered draw-in on mount ── */}
+      {sectionAccent && (
+        <>
+          {/* TL */}
+          <motion.div
+            custom={0}
+            initial="hidden"
+            animate="visible"
+            variants={bracketVariants}
+            className="absolute top-3 left-3 w-6 h-6 border-t-3 border-l-3 rounded-tl-lg origin-top-left"
+            style={{ borderColor: sectionAccent.hex, boxShadow: `0 0 8px ${sectionAccent.hex}60` }}
+          />
+          {/* TR */}
+          <motion.div
+            custom={1}
+            initial="hidden"
+            animate="visible"
+            variants={bracketVariants}
+            className="absolute top-3 right-3 w-6 h-6 border-t-3 border-r-3 rounded-tr-lg origin-top-right"
+            style={{ borderColor: sectionAccent.hex, boxShadow: `0 0 8px ${sectionAccent.hex}60` }}
+          />
+          {/* BL */}
+          <motion.div
+            custom={2}
+            initial="hidden"
+            animate="visible"
+            variants={bracketVariants}
+            className="absolute bottom-3 left-3 w-6 h-6 border-b-3 border-l-3 rounded-bl-lg origin-bottom-left"
+            style={{ borderColor: sectionAccent.hex, boxShadow: `0 0 8px ${sectionAccent.hex}60` }}
+          />
+          {/* BR */}
+          <motion.div
+            custom={3}
+            initial="hidden"
+            animate="visible"
+            variants={bracketVariants}
+            className="absolute bottom-3 right-3 w-6 h-6 border-b-3 border-r-3 rounded-br-lg origin-bottom-right"
+            style={{ borderColor: sectionAccent.hex, boxShadow: `0 0 8px ${sectionAccent.hex}60` }}
+          />
+        </>
+      )}
+
       {/* Camera Feed */}
       <video
         ref={videoRef}
@@ -156,17 +240,55 @@ export default function CameraView({
 
       {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
-
-      {/* Neon corner brackets */}
-      {sectionAccent && (
-        <>
-          <div className="absolute top-3 left-3 w-6 h-6 border-t-3 border-l-3 rounded-tl-lg" style={{ borderColor: sectionAccent.hex }} />
-          <div className="absolute top-3 right-3 w-6 h-6 border-t-3 border-r-3 rounded-tr-lg" style={{ borderColor: sectionAccent.hex }} />
-          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-3 border-l-3 rounded-bl-lg" style={{ borderColor: sectionAccent.hex }} />
-          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-3 border-r-3 rounded-br-lg" style={{ borderColor: sectionAccent.hex }} />
-        </>
-      )}
     </div>
+  );
+}
+
+// ── 10. INSTRUCTION HINT BUBBLE ─────────────────────────────────────────
+interface HintBubbleProps {
+  cameraActive: boolean;
+  accentHex: string;
+}
+const HINTS = [
+  'Point at anything! 🌟',
+  'What IS that? 🤔',
+  "Let's find out! 🔍",
+];
+function HintBubble({ cameraActive, accentHex }: HintBubbleProps) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!cameraActive) return;
+    const id = setInterval(() => setIndex(i => (i + 1) % HINTS.length), 3000);
+    return () => clearInterval(id);
+  }, [cameraActive]);
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`${cameraActive}-${index}`}
+        initial={{ opacity: 0, y: 8, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.9 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="absolute -top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+      >
+        {/* Speech bubble tail */}
+        <div
+          className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
+          style={{ background: accentHex }}
+        />
+        <div
+          className="px-4 py-2 rounded-2xl text-white text-sm font-bold whitespace-nowrap shadow-lg font-fredoka"
+          style={{
+            background: `linear-gradient(135deg, ${accentHex}, ${accentHex}cc)`,
+            boxShadow: `0 4px 16px ${accentHex}50`,
+          }}
+        >
+          {HINTS[index]}
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -206,6 +328,7 @@ export function CameraActions({
   t,
   sectionAccent,
 }: CameraActionsProps) {
+  const [confetti, setConfetti] = useState(false);
   const getNameInLang = (item: IdentifyResult, lang: string): string => {
     const opts = item.nameOptions;
     return (opts && opts[lang as keyof typeof opts]) || item.name;
@@ -221,8 +344,17 @@ export function CameraActions({
     return (opts && opts[lang as keyof typeof opts]) || item.funFact;
   };
 
+  const accentHex = sectionAccent?.hex ?? '#fb923c';
+
+  // ── 9. CTA button with confetti burst ──────────────────────────────────
+  const handleCapture = () => {
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 700);
+    onCapture();
+  };
+
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="relative flex items-center justify-center gap-4">
       {capturedImage && currentResult ? (
         <>
           <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={onResetView} color="orange" sectionAccent={sectionAccent} />
@@ -241,7 +373,45 @@ export function CameraActions({
       ) : cameraActive ? (
         <>
           <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={onSwitchCamera} color="white" sectionAccent={sectionAccent} />
-          <BigBtn onClick={onCapture} disabled={isIdentifying} sectionAccent={sectionAccent}>📷</BigBtn>
+
+          {/* ── 9. Snap & Discover! CTA with confetti ── */}
+          <div className="relative flex items-center">
+            <HintBubble cameraActive={cameraActive} accentHex={accentHex} />
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={handleCapture}
+              disabled={isIdentifying}
+              className="relative overflow-visible flex items-center gap-2 px-8 py-4 rounded-full text-white font-bold text-base font-fredoka shadow-lg transition-all"
+              style={{
+                background: `linear-gradient(135deg, ${accentHex}, ${accentHex}cc)`,
+                boxShadow: `0 6px 24px ${accentHex}50`,
+              }}
+            >
+              {/* Confetti burst particles — live inside the button */}
+              <AnimatePresence>
+                {confetti && (
+                  <div className="confetti-burst" aria-hidden="true">
+                    {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
+                      <motion.span
+                        key={deg}
+                        initial={{ scale: 0, opacity: 1, x: 0, y: 0 }}
+                        animate={{ scale: 1, opacity: 0, x: Math.cos((deg * Math.PI) / 180) * 52, y: Math.sin((deg * Math.PI) / 180) * 52 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ duration: 0.65, ease: 'easeOut', delay: i * 0.03 }}
+                        className="confetti-particle"
+                        style={{
+                          background: [accentHex, '#fbbf24', '#34d399', '#f472b6', '#60a5fa'][i % 5],
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </AnimatePresence>
+              <Camera className="h-5 w-5" />
+              <span>{t('snapDiscover', { defaultValue: 'Snap & Discover!' })}</span>
+            </motion.button>
+          </div>
+
           <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={onFileUpload} color="white" sectionAccent={sectionAccent} />
         </>
       ) : (

@@ -79,12 +79,12 @@ export default function HomeTab({
   const { t } = useTranslation(language);
 
   return (
-    <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pb-2">
+    <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 pb-2">>
       {/* Camera View - Centered Hero Card */}
-      <div className="max-w-lg mx-auto px-1">
+      <div className="max-w-lg mx-auto px-1 w-full">
         <div
-          className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-xl border border-white/50"
-          style={sectionAccent ? { boxShadow: `0 8px 32px ${sectionAccent.hex}20` } : {}}
+          className="relative rounded-3xl overflow-hidden bg-white/90 backdrop-blur-xl border border-white/50"
+          style={sectionAccent ? { filter: `drop-shadow(0 8px 32px ${sectionAccent.hex}30)` } : {}}
         >
           {/* Radial glow behind */}
           <div

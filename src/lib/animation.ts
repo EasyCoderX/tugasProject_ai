@@ -14,7 +14,11 @@ export const tapScale = {
   whileTap: { scale: 0.95 },
 };
 
-// Card hover lift
+// Card hover lift (spec: y -3, spring 300/20)
+export const cardLift = {
+  whileHover: { y: -3, transition: { type: 'spring', stiffness: 300, damping: 20 } },
+};
+
 export const cardHover = {
   whileHover: { y: -4, transition: SPRING.snappy },
 };
