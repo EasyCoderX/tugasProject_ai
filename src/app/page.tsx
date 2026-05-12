@@ -100,6 +100,17 @@ export default function HomePage() {
   const [theme, setTheme] = useState('default');
   const [language, setLanguage] = useState('en');
 
+  // Global click ripple effect
+  const [clicks, setClicks] = useState<{ x: number; y: number; id: number }[]>([]);
+
+  const handleGlobalClick = (e: React.MouseEvent) => {
+    const id = Date.now();
+    setClicks(prev => [...prev, { x: e.clientX, y: e.clientY, id }]);
+    setTimeout(() => {
+      setClicks(prev => prev.filter(c => c.id !== id));
+    }, 600);
+  };
+
   // Camera state
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -204,6 +215,9 @@ export default function HomePage() {
       document.documentElement.style.setProperty('--card-shadow-color', isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)');
       document.documentElement.style.setProperty('--card-topper-start', t.accentHex);
       document.documentElement.style.setProperty('--card-topper-end', t.accentHex + '99');
+
+      // Theme text color
+      document.documentElement.style.setProperty('--theme-text', t.textHex);
     }
   }, [theme]);
 
@@ -929,7 +943,28 @@ export default function HomePage() {
   // ==================== AUTH SCREEN ====================
   if (!user) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center ${currentTheme.bg} p-4 relative overflow-hidden`} style={heroBackground}>
+      <div className={`min-h-screen flex flex-col items-center justify-center ${currentTheme.bg} p-4 relative overflow-hidden`} style={heroBackground} onClick={handleGlobalClick}>
+        {/* Global click ripple effect */}
+        <AnimatePresence>
+          {clicks.map(click => (
+            <motion.span
+              key={click.id}
+              initial={{ scale: 0, opacity: 0.6 }}
+              animate={{ scale: 3, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              className="fixed rounded-full pointer-events-none"
+              style={{
+                left: click.x,
+                top: click.y,
+                width: 40,
+                height: 40,
+                transform: 'translate(-50%, -50%)',
+                background: currentTheme.accentHex + '40',
+              }}
+            />
+          ))}
+        </AnimatePresence>
         {/* Animated background blobs */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
           <motion.div
@@ -1179,7 +1214,7 @@ export default function HomePage() {
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }}>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }} onClick={handleGlobalClick}>
       {/* Theme transition flash */}
       {themeFlash && (
         <div
@@ -1187,6 +1222,27 @@ export default function HomePage() {
           style={{ '--theme-flash-color': (THEMES.find(t => t.id === theme)?.accentHex || '#fb923c') + '30' } as React.CSSProperties}
         />
       )}
+      {/* Global click ripple effect */}
+      <AnimatePresence>
+        {clicks.map(click => (
+          <motion.span
+            key={click.id}
+            initial={{ scale: 0, opacity: 0.6 }}
+            animate={{ scale: 3, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+            className="fixed rounded-full pointer-events-none"
+            style={{
+              left: click.x,
+              top: click.y,
+              width: 40,
+              height: 40,
+              transform: 'translate(-50%, -50%)',
+              background: currentTheme.accentHex + '40',
+            }}
+          />
+        ))}
+      </AnimatePresence>
       {/* Celebration Overlay - rendered here for main app view */}
       <CelebrationOverlay
         isOpen={celebration.isOpen}
@@ -1246,10 +1302,10 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1">
               {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
-              <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -1383,14 +1439,14 @@ export default function HomePage() {
                 ) : (cameraActive || cameraLoading) ? (
                   <>
                     {/* Close camera button - uses theme accent */}
-                    <Button onClick={() => { stopCamera(); setCameraActive(false); }}
+                    <Button onClick={(e) => { e.stopPropagation(); stopCamera(); setCameraActive(false); }}
                       className="text-white rounded-full p-4 border border-white/20"
                       style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
                       <X className="h-6 w-6" />
                     </Button>
 
                     {/* Switch camera button - uses theme accent */}
-                    <Button onClick={switchCamera}
+                    <Button onClick={(e) => { e.stopPropagation(); switchCamera(); }}
                       className="text-white rounded-full p-4 border border-white/20"
                       style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
                       <SwitchCamera className="h-6 w-6" />
@@ -1401,7 +1457,7 @@ export default function HomePage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.92 }}
-                        onClick={handleCapture}
+                        onClick={(e) => { e.stopPropagation(); handleCapture(); }}
                         disabled={isIdentifying}
                         className="flex items-center gap-2 px-8 py-4 rounded-full text-white font-bold text-base font-fredoka shadow-lg transition-all hover:shadow-xl cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 6px 24px ${currentTheme.accentHex}50` }}
@@ -1426,7 +1482,7 @@ export default function HomePage() {
                     </div>
 
                     {/* Upload button - uses theme accent */}
-                    <Button onClick={() => fileInputRef.current?.click()}
+                    <Button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                       className="text-white font-bold rounded-full px-6 py-4"
                       style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}>
                       <Upload className="h-5 w-5" />
@@ -1434,8 +1490,8 @@ export default function HomePage() {
                   </>
                 ) : (
                   <div className="flex items-center gap-3">
-                    {cameraSupported && <Button onClick={() => startCamera()} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
-                    <Button onClick={() => fileInputRef.current?.click()} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
+                    {cameraSupported && <Button onClick={(e) => { e.stopPropagation(); startCamera(); }} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
+                    <Button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
@@ -1724,7 +1780,7 @@ export default function HomePage() {
                 </ScrollArea>
                 <div className="flex gap-2 p-2 border-t border-gray-100">
                   <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
-                  <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
+                  <Button onClick={(e) => { e.stopPropagation(); sendChat(); }} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
                 </div>
               </div>
             </motion.div>

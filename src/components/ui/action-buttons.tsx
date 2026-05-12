@@ -41,7 +41,7 @@ export function Btn({ icon, onClick, color, size, disabled, className, sectionAc
   return (
     <motion.div whileTap={{ scale: 0.9 }}>
       <button
-        onClick={onClick}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
         disabled={disabled}
         className={cn(btnVariants({ color, size }), className)}
         data-slot="btn"

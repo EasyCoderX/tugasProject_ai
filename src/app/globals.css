@@ -853,3 +853,81 @@
   border-radius: 24px 24px 0 0;
   overflow: visible;
 }
+
+/* Theme-aware text colors */
+.theme-text { color: var(--theme-text, #1f2937); }
+.theme-text-light { color: var(--theme-text, #4b5563); }
+.theme-text-muted { color: var(--theme-text, #6b7280); opacity: 0.7; }
+
+/* Override hardcoded gray text for dark themes */
+[data-theme="night"] .text-gray-800,
+[data-theme="night"] .text-gray-700,
+[data-theme="night"] .text-gray-600 { color: #f8fafc !important; }
+
+[data-theme="night"] .text-gray-500,
+[data-theme="night"] .text-gray-400 { color: #cbd5e1 !important; }
+
+/* Override card colors for night theme */
+[data-theme="night"] .bg-card { background: rgba(30, 41, 59, 0.8) !important; }
+[data-theme="night"] .text-card-foreground { color: #f8fafc !important; }
+[data-theme="night"] .text-muted-foreground { color: #94a3b8 !important; }
+
+/* Night theme border refinements - softer, more subtle */
+[data-theme="night"] .border,
+[data-theme="night"] .border-t,
+[data-theme="night"] .border-b,
+[data-theme="night"] .border-r,
+[data-theme="night"] .border-l,
+[data-theme="night"] [class*="border"] {
+  border-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Game option buttons - override hardcoded gray-200 borders */
+[data-theme="night"] button.border-2,
+[data-theme="night"] button.border-gray-200,
+[data-theme="night"] div.border-2,
+[data-theme="night"] div.border-gray-200,
+[data-theme="night"] .rounded-xl.border-2,
+[data-theme="night"] .rounded-lg.border-2 {
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Quiz and listen option buttons */
+[data-theme="night"] .bg-gray-50,
+[data-theme="night"] [class*="bg-gray-50"],
+[data-theme="night"] button.rounded-xl,
+[data-theme="night"] button.rounded-lg {
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Subtle glow borders for interactive elements */
+[data-theme="night"] .rounded-xl,
+[data-theme="night"] .rounded-2xl,
+[data-theme="night"] .rounded-3xl,
+[data-theme="night"] .rounded-full {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Card glow effect for night theme */
+[data-theme="night"] .shadow-lg,
+[data-theme="night"] .shadow-md {
+  box-shadow: 0 10px 40px rgba(99, 102, 241, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Input fields refined for night */
+[data-theme="night"] input,
+[data-theme="night"] textarea,
+[data-theme="night"] .bg-gray-50 {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="night"] input::placeholder,
+[data-theme="night"] textarea::placeholder {
+  color: #64748b !important;
+}
