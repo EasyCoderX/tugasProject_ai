@@ -6,6 +6,7 @@ import { THEMES } from '@/lib/themes';
 interface ThemeSwatchSwitcherProps {
   currentTheme: string;
   onThemeChange: (themeId: string) => void;
+  isDarkTheme?: boolean;
 }
 
 // 2-stop gradient for each theme's swatch preview
@@ -28,7 +29,7 @@ const SWATCH_LABELS: Record<string, string> = {
   candy:     'Sugar',
 };
 
-export default function ThemeSwatchSwitcher({ currentTheme, onThemeChange }: ThemeSwatchSwitcherProps) {
+export default function ThemeSwatchSwitcher({ currentTheme, onThemeChange, isDarkTheme = false }: ThemeSwatchSwitcherProps) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-3 justify-center">
       {THEMES.map((theme) => {
@@ -56,7 +57,8 @@ export default function ThemeSwatchSwitcher({ currentTheme, onThemeChange }: The
                 boxShadow: isActive ? `0 4px 12px ${theme.accentHex}60` : 'none',
               }}
             />
-            <span className={`text-[10px] whitespace-nowrap ${isActive ? 'font-bold' : 'font-medium opacity-60'}`}>
+            <span className={`text-[10px] whitespace-nowrap ${isActive ? 'font-bold' : 'font-medium'}`}
+              style={{ color: isDarkTheme ? (isActive ? '#ffffff' : '#cbd5e1') : undefined, opacity: isDarkTheme ? undefined : (isActive ? 1 : 0.6) }}>
               {theme.emoji} {theme.name}
             </span>
           </motion.button>

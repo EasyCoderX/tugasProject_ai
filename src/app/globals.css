@@ -424,7 +424,7 @@
 /* Warm - sunny, glowing cards for sunset theme */
 .card-style-warm {
   background: var(--kid-card-bg);
-  border-radius: var(--radius-2xl, 1rem);
+  border-radius: var(--radius-xl);
   border: 2px solid rgb(var(--kid-accent-rgb) / 0.25);
   box-shadow: 0 4px 20px var(--kid-shadow-color), inset 0 0 30px rgba(244, 63, 94, 0.05);
   overflow: hidden;
@@ -471,7 +471,7 @@
 /* Candy - playful rounded border */
 .card-style-candy {
   background: var(--kid-card-bg);
-  border-radius: var(--radius-2xl, 1rem);
+  border-radius: var(--radius-xl);
   border: 4px dashed var(--kid-accent-hex);
   overflow: hidden;
   transition: all 0.3s ease;
@@ -480,6 +480,16 @@
   border-color: var(--kid-accent-hex);
   transform: translateY(-2px);
   z-index: 1;
+}
+/* Remove Card's default border inside card-style-candy and align corners */
+.card-style-candy .card-kid,
+.card-style-candy [data-slot="card"] {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.card-style-candy [data-slot="card"] {
+  background: transparent;
 }
 
 /* Keep original card-kid as alias for bouncy (backward compatibility) */
@@ -675,7 +685,7 @@
 
 /* ── 10. INSTRUCTION HINT BUBBLE ──────────────────────────────────────── */
 [data-theme="candy"] .card-kid {
-  border-radius: var(--radius-2xl, 1rem);
+  border-radius: var(--radius-xl);
   border: 4px dashed var(--kid-accent-hex);
 }
 

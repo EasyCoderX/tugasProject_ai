@@ -1314,24 +1314,33 @@ export default function HomePage() {
 
         {/* Settings Dialog */}
         <Dialog open={showSettings} onOpenChange={setShowSettings}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-sm" style={{ background: currentTheme.textHex === '#f8fafc' ? 'rgba(30,30,50,0.95)' : 'white', borderColor: currentTheme.textHex === '#f8fafc' ? 'rgba(99,102,241,0.3)' : undefined }}>
+            <DialogHeader><DialogTitle style={{ color: currentTheme.textHex === '#f8fafc' ? '#e2e8f0' : undefined }}>⚙️ {t('settings')}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               {user?.isPro && (
                 <div>
-                  <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex, textShadow: currentTheme.textHex === '#f8fafc' ? '0 1px 2px rgba(0,0,0,0.5)' : 'none' }}>🎨 {t('theme')}</label>
                   <ThemeSwatchSwitcher
                     currentTheme={theme}
                     onThemeChange={(id) => { setTheme(id); setThemeFlash(true); user?.id !== 'guest' ? updateProfile({ theme: id }) : localStorage.setItem('theme', id); }}
+                    isDarkTheme={currentTheme.textHex === '#f8fafc'}
                   />
                 </div>
               )}
               <div>
-                <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
+                <label className="text-sm font-bold mb-2 block" style={{ color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex, textShadow: currentTheme.textHex === '#f8fafc' ? '0 1px 2px rgba(0,0,0,0.5)' : 'none' }}>🌐 {t('languageLabel')}</label>
                 <div className="flex gap-2">
                   {LANGUAGES.map(l => (
                     <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
-                      className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                      className="flex-1 p-2 rounded-xl text-xs font-medium transition-all font-fredoka"
+                      style={{
+                        color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex,
+                        background: language === l.id
+                          ? currentTheme.accentHex
+                          : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.12)' : 'white',
+                        border: `2px solid ${language === l.id ? currentTheme.accentHex : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.15)' : '#e5e7eb'}`,
+                        boxShadow: language === l.id ? `0 0 16px ${currentTheme.accentHex}88` : currentTheme.textHex === '#f8fafc' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+                      }}>
                       {l.emoji} {l.name}
                     </button>
                   ))}
