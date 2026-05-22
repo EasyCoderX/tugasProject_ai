@@ -146,12 +146,18 @@ const translations: Record<Lang, TranslationMap> = {
       'Almost! Try rearranging the pieces.',
 
     // Theme names
-    themeDefault: 'Default',
-    themeOcean: 'Ocean',
-    themeForest: 'Forest',
-    themeSunset: 'Sunset',
-    themeNight: 'Night',
-    themeCandy: 'Candy',
+    themeLuminousMeadow: 'Luminous Meadow',
+    themeCoralDreams: 'Coral Dreams',
+    themeWhisperingWoods: 'Whispering Woods',
+    themeGoldenHour: 'Golden Hour',
+    themeTwilightReverie: 'Twilight Reverie',
+    themeSugarParadise: 'Sugar Paradise',
+
+    // Portal strings
+    chooseWorld: 'Choose Your World!',
+    enterWorld: 'Enter',
+    unlockWorld: 'Unlock',
+    tryProThemes: 'Try PRO Themes',
 
     // Additional UI strings
     learnPractice: 'Learn & Practice',
@@ -177,7 +183,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Upload an image first',
     generating: 'Generating options...',
-    quizError: 'Could not generate quiz. Try identifying a new object!',
+    quizError: 'Oops! The quiz could not load. Want to try again? 🔄',
     revealAnswer: 'Reveal Answer',
     nextQuestion: 'Next Question',
     tryAnother: 'Try Another',
@@ -185,6 +191,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: 'Guest',
+
+    // Celebration overlay
+    continue: 'Continue',
   },
 
   id: {
@@ -329,12 +338,18 @@ const translations: Record<Lang, TranslationMap> = {
       'Hampir! Coba susun ulang potongannya.',
 
     // Theme names
-    themeDefault: 'Default',
-    themeOcean: 'Lautan',
-    themeForest: 'Hutan',
-    themeSunset: 'Senja',
-    themeNight: 'Malam',
-    themeCandy: 'Permen',
+    themeLuminousMeadow: 'Padang Cahaya',
+    themeCoralDreams: 'Impian Karang',
+    themeWhisperingWoods: 'Hutan Bisikan',
+    themeGoldenHour: 'Jam Emas',
+    themeTwilightReverie: 'Senja Impian',
+    themeSugarParadise: 'Surga Gula',
+
+    // Portal strings
+    chooseWorld: 'Pilih Duniamu!',
+    enterWorld: 'Masuk',
+    unlockWorld: 'Buka',
+    tryProThemes: 'Coba Tema PRO',
 
     // Additional UI strings
     learnPractice: 'Belajar & Berlatih',
@@ -360,7 +375,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: 'Puzzle',
     identifyFirstPuzzle: 'Unggah gambar terlebih dahulu',
     generating: 'Menghasilkan opsi...',
-    quizError: 'Kuis tidak dapat dihasilkan. Coba identifikasi objek baru!',
+    quizError: 'Ups! Kuis tidak bisa dimuat. Coba lagi ya! 🔄',
     revealAnswer: 'Tampilkan Jawaban',
     nextQuestion: 'Pertanyaan Berikutnya',
     tryAnother: 'Coba Lagi',
@@ -368,6 +383,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: 'Tamu',
+
+    // Celebration overlay
+    continue: 'Lanjutkan',
   },
 
   zh: {
@@ -503,12 +521,18 @@ const translations: Record<Lang, TranslationMap> = {
     ttsPuzzleAlmost: '差一点！试试重新排列拼图块。',
 
     // Theme names
-    themeDefault: '默认',
-    themeOcean: '海洋',
-    themeForest: '森林',
-    themeSunset: '日落',
-    themeNight: '夜晚',
-    themeCandy: '糖果',
+    themeLuminousMeadow: '光之草原',
+    themeCoralDreams: '珊瑚梦境',
+    themeWhisperingWoods: '低语森林',
+    themeGoldenHour: '黄金时刻',
+    themeTwilightReverie: '暮光幻想',
+    themeSugarParadise: '甜蜜天堂',
+
+    // Portal strings
+    chooseWorld: '选择你的世界！',
+    enterWorld: '进入',
+    unlockWorld: '解锁',
+    tryProThemes: '试试PRO主题',
 
     // Additional UI strings
     learnPractice: '学习与练习',
@@ -534,7 +558,7 @@ const translations: Record<Lang, TranslationMap> = {
     puzzleBtn: '拼图',
     identifyFirstPuzzle: '先上传一张图片',
     generating: '正在生成选项...',
-    quizError: '无法生成测验题目。请尝试识别一个新物体！',
+    quizError: '哎呀！测验加载失败了。要再试一次吗？🔄',
     revealAnswer: '揭晓答案',
     nextQuestion: '下一题',
     tryAnother: '再试一次',
@@ -542,6 +566,9 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Guest
     guest: '游客',
+
+    // Celebration overlay
+    continue: '继续',
   },
 };
 

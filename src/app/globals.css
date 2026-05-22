@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
+  --font-fredoka: var(--font-fredoka);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,43 +40,85 @@
   --color-card: var(--card);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-lg: calc(var(--radius));
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ==================== BASE THEME VARIABLES ==================== */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 1rem;
+
+  /* Base colors */
+  --background: oklch(0.98 0.005 80);
+  --foreground: oklch(0.2 0.01 80);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.2 0.01 80);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.2 0.01 80);
+  --primary: oklch(0.6 0.15 60);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.01 80);
+  --secondary-foreground: oklch(0.2 0.01 80);
+  --muted: oklch(0.95 0.01 80);
+  --muted-foreground: oklch(0.5 0.02 80);
+  --accent: oklch(0.95 0.02 80);
+  --accent-foreground: oklch(0.2 0.015 80);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.9 0.01 80);
+  --input: oklch(0.9 0.01 80);
+  --ring: oklch(0.7 0.15 60);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Sidebar */
+  --sidebar: oklch(0.98 0.005 80);
+  --sidebar-foreground: oklch(0.2 0.01 80);
+  --sidebar-primary: oklch(0.6 0.15 60);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.95 0.01 80);
+  --sidebar-accent-foreground: oklch(0.2 0.01 80);
+  --sidebar-border: oklch(0.9 0.01 80);
+  --sidebar-ring: oklch(0.7 0.15 60);
+
+  /* Kid-app specific */
+  --kid-accent-rgb: 251 146 60;
+  --kid-accent-hex: #fb923c;
+  --kid-accent-light: oklch(0.97 0.02 80);
+  --kid-gradient-from: var(--kid-accent-hex);
+  --kid-gradient-to: #4ade80;
+  --kid-shadow-color: rgba(251, 146, 60, 0.3);
+  --kid-card-bg: rgba(255, 255, 255, 0.9);
+  --kid-pattern-opacity: 0;
+
+  /* Card tokens */
+  --card-radius: 28px;
+  --card-border: rgba(0,0,0,0.06);
+  --card-highlight: inset 0 1px 0 rgba(255,255,255,0.25);
+  --card-topper-height: 4px;
+  --card-shadow-color: rgba(0,0,0,0.08);
+  --card-topper-start: #fb923c;
+  --card-topper-end: #fdba74;
+
+  /* Button tokens — accent defaults to first theme color */
+  --btn-accent: #fb923c;
+  --btn-accent-light: #fdba74;
+  --btn-shadow: rgba(251,146,60,0.3);
+  --icon-btn-bg: rgba(251,146,60,0.12);
+
+  /* Bubble text token */
+  --bubble-shadow: rgba(251,146,60,0.35);
+
+  /* Content area background token */
+  --content-bg: rgba(255,255,255,0.6);
+
+  /* Blob color tokens */
+  --blob-color-1: #fb923c;
+  --blob-color-2: #fdba74;
+  --blob-color-3: #f97316;
+  --blob-color-4: #fbbf24;
 }
 
 .dark {
@@ -110,13 +153,791 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --kid-accent-light: oklch(0.25 0.05 80);
+  --kid-card-bg: rgba(30, 30, 40, 0.9);
+  --kid-shadow-color: rgba(251, 146, 60, 0.2);
+  --content-bg: rgba(15,23,42,0.5);
 }
 
+/* ==================== THEME-SPECIFIC VARIABLES ==================== */
+
+/* Default - Rainbow Garden */
+[data-theme="default"] {
+  --kid-accent-rgb: 251 146 60;
+  --kid-accent-hex: #fb923c;
+  --kid-gradient-from: #fb923c;
+  --kid-gradient-to: #4ade80;
+  --kid-shadow-color: rgba(251, 146, 60, 0.3);
+  --kid-card-bg: rgba(255, 255, 255, 0.92);
+  --kid-pattern-opacity: 0;
+}
+
+/* Ocean Explorer */
+[data-theme="ocean"] {
+  --kid-accent-rgb: 59 130 246;
+  --kid-accent-hex: #3b82f6;
+  --kid-gradient-from: #3b82f6;
+  --kid-gradient-to: #06b6d4;
+  --kid-shadow-color: rgba(59, 130, 246, 0.3);
+  --kid-card-bg: rgba(240, 249, 255, 0.92);
+  --kid-pattern-opacity: 0.05;
+}
+
+/* Enchanted Forest */
+[data-theme="forest"] {
+  --kid-accent-rgb: 34 197 94;
+  --kid-accent-hex: #22c55e;
+  --kid-gradient-from: #22c55e;
+  --kid-gradient-to: #84cc16;
+  --kid-shadow-color: rgba(34, 197, 94, 0.3);
+  --kid-card-bg: rgba(240, 253, 244, 0.92);
+  --kid-pattern-opacity: 0.08;
+}
+
+/* Sunset Sky */
+[data-theme="sunset"] {
+  --kid-accent-rgb: 244 63 94;
+  --kid-accent-hex: #f43f5e;
+  --kid-gradient-from: #f97316;
+  --kid-gradient-to: #ec4899;
+  --kid-shadow-color: rgba(244, 63, 94, 0.3);
+  --kid-card-bg: rgba(255, 247, 237, 0.92);
+  --kid-pattern-opacity: 0.06;
+}
+
+/* Starry Night */
+[data-theme="night"] {
+  --kid-accent-rgb: 99 102 241;
+  --kid-accent-hex: #6366f1;
+  --kid-gradient-from: #6366f1;
+  --kid-gradient-to: #a855f7;
+  --kid-shadow-color: rgba(99, 102, 241, 0.3);
+  --kid-card-bg: rgba(15, 15, 30, 0.92);
+  --kid-pattern-opacity: 0.1;
+  color: #f8fafc;
+}
+
+/* Night theme text color overrides for hardcoded gray classes */
+[data-theme="night"] .text-gray-800 { color: #f8fafc !important; }
+[data-theme="night"] .text-gray-700 { color: #e2e8f0 !important; }
+[data-theme="night"] .text-gray-600 { color: #cbd5e1 !important; }
+[data-theme="night"] .text-gray-500 { color: #94a3b8 !important; }
+[data-theme="night"] .text-gray-400 { color: #64748b !important; }
+[data-theme="night"] .text-gray-300 { color: #475569 !important; }
+
+/* Night theme footer override */
+[data-theme="night"] footer {
+  background: rgba(15, 15, 30, 0.6) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="night"] footer p {
+  color: #94a3b8 !important;
+}
+
+/* Candy Kingdom */
+[data-theme="candy"] {
+  --kid-accent-rgb: 236 72 153;
+  --kid-accent-hex: #ec4899;
+  --kid-gradient-from: #ec4899;
+  --kid-gradient-to: #a855f7;
+  --kid-shadow-color: rgba(236, 72, 153, 0.3);
+  --kid-card-bg: rgba(253, 242, 248, 0.92);
+  --kid-pattern-opacity: 0.1;
+}
+
+/* ==================== ANIMATION KEYFRAMES ==================== */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--kid-shadow-color); }
+  50% { box-shadow: 0 0 20px 5px var(--kid-shadow-color); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ==================== UTILITY CLASSES ==================== */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-fredoka);
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fredoka);
+  }
+
+  .font-fredoka {
+    font-family: var(--font-fredoka);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Bubble text — white text with thick colored drop-shadow */
+.text-bubble {
+  color: white;
+  text-shadow: 0 2px 8px var(--bubble-shadow, rgba(0,0,0,0.3));
+}
+
+/* Primary pill button */
+.btn-primary {
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--btn-accent), var(--btn-accent-light));
+  color: white;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    0 2px 8px var(--btn-shadow);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.btn-primary:active {
+  transform: scale(0.93);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+}
+
+/* Icon button — 44px circular glass */
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-btn-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.15s ease;
+  cursor: pointer;
+}
+.btn-icon:hover {
+  transform: scale(1.08);
+}
+.btn-icon:active {
+  transform: scale(0.93);
+}
+
+/* ==================== THEME BUTTON RADIUS ==================== */
+:root {
+  --theme-button-radius: var(--radius-lg);
+}
+
+[data-theme="default"] { --theme-button-radius: var(--radius-2xl); }
+[data-theme="ocean"] { --theme-button-radius: var(--radius-2xl); }
+[data-theme="forest"] { --theme-button-radius: var(--radius-2xl); }
+[data-theme="sunset"] { --theme-button-radius: var(--radius-2xl); }
+[data-theme="night"] { --theme-button-radius: var(--radius-xl); }
+[data-theme="candy"] { --theme-button-radius: var(--radius-2xl); }
+
+/* ==================== THEME CARD STYLES ==================== */
+
+/* Bouncy (default) - bouncy, playful cards with hover lift */
+.card-style-bouncy {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
+  box-shadow: 0 4px 20px var(--kid-shadow-color);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-style-bouncy:hover {
+  box-shadow: 0 8px 30px var(--kid-shadow-color);
+  transform: translateY(-2px);
+}
+
+/* Flat - minimal, clean cards */
+.card-style-flat {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgb(var(--kid-accent-rgb) / 0.1);
+  transition: all 0.2s ease;
+}
+.card-style-flat:hover {
+  background: rgb(var(--kid-accent-rgb) / 0.05);
+}
+
+/* Raised - prominent cards with deep shadow */
+.card-style-raised {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
+  box-shadow: 0 10px 40px var(--kid-shadow-color);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-style-raised:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px var(--kid-shadow-color);
+}
+
+/* Warm - sunny, glowing cards for sunset theme */
+.card-style-warm {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.25);
+  box-shadow: 0 4px 20px var(--kid-shadow-color), inset 0 0 30px rgba(244, 63, 94, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-style-warm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--kid-shadow-color), inset 0 0 40px rgba(244, 63, 94, 0.08);
+}
+
+/* Wavy - subtle wave shape */
+.card-style-wavy {
+  background: var(--kid-card-bg);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
+  border-radius: 1.5rem 2rem 1.5rem 2rem / 2rem 1.5rem 2rem 1.5rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: float-gentle 3s ease-in-out infinite;
+}
+
+/* Organic - subtle organic shape */
+.card-style-organic {
+  background: var(--kid-card-bg);
+  border-radius: 1.5rem 1.25rem 1.75rem 1.25rem / 1.25rem 1.75rem 1.25rem 1.5rem;
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
+  padding: 1.5rem 2rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-style-organic:hover {
+  box-shadow: 0 8px 25px var(--kid-shadow-color);
+}
+
+/* Glow - glowing border animation */
+.card-style-glow {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
+  animation: pulse-glow 2s ease-in-out infinite;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Candy - playful rounded border */
+.card-style-candy {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 4px dashed var(--kid-accent-hex);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-style-candy:hover {
+  border-color: var(--kid-accent-hex);
+  transform: translateY(-2px);
+  z-index: 1;
+}
+/* Remove Card's default border inside card-style-candy and align corners */
+.card-style-candy .card-kid,
+.card-style-candy [data-slot="card"] {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.card-style-candy [data-slot="card"] {
+  background: transparent;
+}
+
+/* Keep original card-kid as alias for bouncy (backward compatibility) */
+.card-kid {
+  background: var(--kid-card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
+  box-shadow: 0 4px 20px var(--kid-shadow-color);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.card-kid:hover {
+  box-shadow: 0 8px 30px var(--kid-shadow-color);
+  transform: translateY(-2px);
+}
+
+/* Button styles for kids */
+.btn-kid {
+  font-family: var(--font-fredoka);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.btn-kid:active {
+  transform: scale(0.95);
+}
+
+.btn-kid-primary {
+  background: linear-gradient(135deg, var(--kid-gradient-from), var(--kid-gradient-to));
+  color: white;
+  box-shadow: 0 4px 15px var(--kid-shadow-color);
+}
+
+.btn-kid-primary:hover {
+  box-shadow: 0 6px 20px var(--kid-shadow-color);
+  transform: translateY(-1px);
+}
+
+/* Tab styles */
+.tab-kid {
+  font-family: var(--font-fredoka);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  transition: all 0.3s ease;
+}
+
+.tab-kid[data-active="true"] {
+  background: linear-gradient(135deg, var(--kid-gradient-from), var(--kid-gradient-to));
+  color: white;
+  box-shadow: 0 4px 15px var(--kid-shadow-color);
+}
+
+/* Input styles */
+.input-kid {
+  font-family: var(--font-fredoka);
+  border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+  background: var(--kid-card-bg);
+}
+
+.input-kid:focus {
+  outline: none;
+  border-color: var(--kid-accent-hex);
+  box-shadow: 0 0 0 3px var(--kid-shadow-color);
+}
+
+/* Animation utility classes */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-gentle {
+  animation: float-gentle 2s ease-in-out infinite;
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+/* ==================== THEME PATTERN OVERLAYS ==================== */
+[data-theme="ocean"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 15 Q45 5 30 25 Q15 5 30 15Z' fill='%233b82f6' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: var(--kid-pattern-opacity, 0.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="forest"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 5 Q25 20 20 35 Q15 20 20 5Z' fill='%2322c55e' opacity='0.08'/%3E%3C/svg%3E");
+  opacity: var(--kid-pattern-opacity, 0.08);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="sunset"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(244, 63, 94, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="night"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(1px 1px at 10% 20%, rgba(99, 102, 241, 0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 80% 40%, rgba(99, 102, 241, 0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 50% 70%, rgba(99, 102, 241, 0.3) 50%, transparent 50%);
+  background-size: 100% 100%;
+  opacity: var(--kid-pattern-opacity, 0.1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="candy"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--kid-accent-hex) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: var(--kid-pattern-opacity, 0.1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 9. HERO CAMERA CARD ────────────────────────────────────────────── */
+/* Breathing glow — pulses box-shadow while camera is active */
+@keyframes camera-breathing {
+  0%, 100% { box-shadow: 0 0 8px var(--kid-accent-hex, #fb923c), 0 0 16px rgba(251,146,60,0.25); }
+  50%       { box-shadow: 0 0 16px var(--kid-accent-hex, #fb923c), 0 0 36px rgba(251,146,60,0.40); }
+}
+
+/* Scan sweep — horizontal gradient line sweeping top to bottom on loop */
+@keyframes scan-sweep {
+  0%   { top: 0;   opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Confetti burst — particles spray from center of the button */
+.confetti-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.confetti-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ── 10. INSTRUCTION HINT BUBBLE ──────────────────────────────────────── */
+[data-theme="candy"] .card-kid {
+  border-radius: var(--radius-xl);
+  border: 4px dashed var(--kid-accent-hex);
+}
+
+/* ==================== THEME TRANSITION ==================== */
+.theme-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* ==================== SCROLLBAR STYLING ==================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+/* Hide scrollbar on theme switcher row */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Theme transition — radial wipe from click origin */
+@keyframes theme-wipe {
+  0%   { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+.theme-transition-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle, var(--theme-flash-color, #fb923c) 0%, transparent 70%);
+  pointer-events: none;
+  animation: theme-wipe 400ms ease-out forwards;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--kid-accent-rgb) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--kid-accent-rgb) / 0.5);
+}
+
+/* ==================== RIPPLE EFFECT ==================== */
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+  transform: scale(0);
+  animation: ripple-expand 600ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple-expand {
+  0%   { transform: scale(0); opacity: 0.3; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Glass card with color bar topper */
+.card-glass {
+  border-radius: var(--card-radius);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid var(--card-border);
+  box-shadow: var(--card-highlight), 0 8px 32px var(--card-shadow-color);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Color bar topper */
+.card-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--card-topper-height);
+  background: linear-gradient(90deg, var(--card-topper-start), var(--card-topper-end));
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  pointer-events: none;
+}
+
+/* Dark theme override */
+.dark .card-glass {
+  --card-border: rgba(255,255,255,0.18);
+  --card-shadow-color: rgba(0,0,0,0.3);
+}
+
+/* ==================== SELECTION COLOR ==================== */
+::selection {
+  background: rgb(var(--kid-accent-rgb) / 0.3);
+  color: inherit;
+}
+
+/* ==================== Background Depth System ==================== */
+
+/* SVG blob mesh — 4 slow-drifting organic shapes, CSS-only */
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-blobs svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+/* Each blob drifts independently */
+.blob-1 {
+  animation: blob-drift-1 20s ease-in-out infinite alternate;
+  opacity: 0.15;
+}
+.blob-2 {
+  animation: blob-drift-2 20s ease-in-out infinite alternate;
+  animation-delay: -5s;
+  opacity: 0.12;
+}
+.blob-3 {
+  animation: blob-drift-3 20s ease-in-out infinite alternate;
+  animation-delay: -10s;
+  opacity: 0.14;
+}
+.blob-4 {
+  animation: blob-drift-4 20s ease-in-out infinite alternate;
+  animation-delay: -15s;
+  opacity: 0.12;
+}
+@keyframes blob-drift-1 {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  100% { transform: translate(8%, -6%) scale(1.08); }
+}
+@keyframes blob-drift-2 {
+  0%   { transform: translate(0%, 0%) scale(1.05); }
+  100% { transform: translate(-6%, 8%) scale(0.95); }
+}
+@keyframes blob-drift-3 {
+  0%   { transform: translate(0%, 0%) scale(0.95); }
+  100% { transform: translate(5%, 5%) scale(1.05); }
+}
+@keyframes blob-drift-4 {
+  0%   { transform: translate(0%, 0%) scale(1.02); }
+  100% { transform: translate(-4%, -4%) scale(0.98); }
+}
+
+/* Dot-grid texture — subtle tactile depth */
+.bg-texture {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='1' fill='%23000' fill-opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 40px 40px;
+}
+
+/* Content area — slight contrast from shell, inset shadow border */
+.bg-content {
+  position: relative;
+  z-index: 2;
+  background: var(--content-bg, rgba(255,255,255,0.6));
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.04);
+  border-radius: 24px 24px 0 0;
+  overflow: visible;
+}
+
+/* Theme-aware text colors */
+.theme-text { color: var(--theme-text, #1f2937); }
+.theme-text-light { color: var(--theme-text, #4b5563); }
+.theme-text-muted { color: var(--theme-text, #6b7280); opacity: 0.7; }
+
+/* Override hardcoded gray text for dark themes */
+[data-theme="night"] .text-gray-800,
+[data-theme="night"] .text-gray-700,
+[data-theme="night"] .text-gray-600 { color: #f8fafc !important; }
+
+[data-theme="night"] .text-gray-500,
+[data-theme="night"] .text-gray-400 { color: #cbd5e1 !important; }
+
+/* Override card colors for night theme */
+[data-theme="night"] .bg-card { background: rgba(30, 41, 59, 0.8) !important; }
+[data-theme="night"] .text-card-foreground { color: #f8fafc !important; }
+[data-theme="night"] .text-muted-foreground { color: #94a3b8 !important; }
+
+/* Night theme border refinements - softer, more subtle */
+[data-theme="night"] .border,
+[data-theme="night"] .border-t,
+[data-theme="night"] .border-b,
+[data-theme="night"] .border-r,
+[data-theme="night"] .border-l,
+[data-theme="night"] [class*="border"] {
+  border-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Game option buttons - override hardcoded gray-200 borders */
+[data-theme="night"] button.border-2,
+[data-theme="night"] button.border-gray-200,
+[data-theme="night"] div.border-2,
+[data-theme="night"] div.border-gray-200,
+[data-theme="night"] .rounded-xl.border-2,
+[data-theme="night"] .rounded-lg.border-2 {
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Quiz and listen option buttons */
+[data-theme="night"] .bg-gray-50,
+[data-theme="night"] [class*="bg-gray-50"],
+[data-theme="night"] button.rounded-xl,
+[data-theme="night"] button.rounded-lg {
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Subtle glow borders for interactive elements */
+[data-theme="night"] .rounded-xl,
+[data-theme="night"] .rounded-2xl,
+[data-theme="night"] .rounded-3xl,
+[data-theme="night"] .rounded-full {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Card glow effect for night theme */
+[data-theme="night"] .shadow-lg,
+[data-theme="night"] .shadow-md {
+  box-shadow: 0 10px 40px rgba(99, 102, 241, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Input fields refined for night */
+[data-theme="night"] input,
+[data-theme="night"] textarea,
+[data-theme="night"] .bg-gray-50 {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="night"] input::placeholder,
+[data-theme="night"] textarea::placeholder {
+  color: #64748b !important;
 }

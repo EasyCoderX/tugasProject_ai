@@ -30,6 +30,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# env files (can opt-in for committing if needed)
+.env*
 
 # vercel
 .vercel
@@ -40,6 +42,9 @@ yarn-error.log*
 next-env.d.ts
 local-*
 .claude
+.superpowers
+docs
+.z-ai-config
 *.log
 dev.log
 dev.out.log

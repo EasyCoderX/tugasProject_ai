@@ -1,0 +1,129 @@
+/* ================================================================
+   SIDEBAR ANIMATIONS
+   ================================================================ */
+
+/* ── 6. LOGO — 4 CSS-only star sparks orbiting the logo mark ── */
+.star-sparkle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-color, #fb923c);
+  opacity: 0;
+  animation: sparkle-orbit 4s ease-in-out infinite;
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px var(--accent-color, #fb923c));
+}
+
+/* Each star orbits at a different position & phase */
+.star-1 {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: 0s;
+}
+.star-2 {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  animation-delay: -1s;
+}
+.star-3 {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: -2s;
+}
+.star-4 {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  animation-delay: -3s;
+}
+
+/* Orbit animation — stars drift in a small elliptical path around the logo */
+@keyframes sparkle-orbit {
+  0%   {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) translateX(0px)  translateY(0px)  scale(1);
+  }
+  25%  {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateX(6px)  translateY(-4px) scale(1.2);
+  }
+  50%  {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) translateX(8px)  translateY(0px)  scale(1);
+  }
+  75%  {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateX(4px)  translateY(4px)  scale(1.1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) translateX(0px)  translateY(0px)  scale(1);
+  }
+}
+/* Corrected orbit for right/bottom/left stars (they're pinned to edge, not center) */
+.star-2,
+.star-4 {
+  animation-name: sparkle-orbit-h;
+}
+@keyframes sparkle-orbit-h {
+  0%   { opacity: 0.5; transform: translateY(-50%)  translateX(0px)  translateY(0px)   scale(1);   }
+  25%  { opacity: 1;   transform: translateY(-50%)  translateX(-4px) translateY(-6px) scale(1.2); }
+  50%  { opacity: 0.5; transform: translateY(-50%)  translateX(0px)  translateY(-8px)  scale(1);   }
+  75%  { opacity: 1;   transform: translateY(-50%)  translateX(4px) translateY(-4px)  scale(1.1); }
+  100% { opacity: 0.5; transform: translateY(-50%)  translateX(0px)  translateY(0px)   scale(1);   }
+}
+
+/* ── 7. GAMES BADGE DOT — pulsing accent dot ── */
+.games-badge-dot {
+  position: absolute;
+  top: 1px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sidebar-badge-border, #fff);
+  animation: badge-pulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%       { transform: scale(1.5);  opacity: 0.6; }
+}
+
+/* ── 7. INACTIVE NAV LABEL — hover: translateX(2px) ── */
+.sidebar-nav-item-label {
+  transition: transform 0.2s ease;
+}
+.sidebar-nav-item:hover .sidebar-nav-item-label {
+  transform: translateX(2px);
+}
+
+/* ── 7. NAV LABEL EXIT ANIMATION ── */
+@keyframes nav-label-exit {
+  0%   { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(8px); }
+}
+
+/* ── 8. COLLAPSE TOGGLE BUTTON ── */
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sidebar-collapse-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px var(--accent-color, #fb923c) 60;
+}
+.sidebar-collapse-btn:active {
+  transform: scale(0.92);
+}

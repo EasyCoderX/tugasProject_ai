@@ -1,12 +1,14 @@
-﻿'use client';
+'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type React } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { THEMES, type ThemeConfig } from '@/lib/themes';
 import {
   Camera, Volume2, VolumeX, RotateCcw, Sparkles, SwitchCamera, ImagePlus,
   Upload, Settings, Star, BookOpen, MessageCircle, Home, Gamepad2,
   User, Trophy, Send, RotateCw, Puzzle, HelpCircle, Crown, LogOut,
-  Languages, Palette, Trash2, ChevronRight, Check, X, Mic, Eye, Award
+  Languages, Palette, Trash2, ChevronRight, Check, X, Mic, Eye, Award,
+  Shield, Trophy as TrophyIcon, Zap, Rainbow, Smile, Laugh, Heart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,10 +16,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Sidebar from '@/components/Sidebar';
+import MobileTabBar from '@/components/MobileTabBar';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTranslation, type Lang } from '@/lib/i18n';
+import Confetti from '@/components/Confetti';
+import CelebrationOverlay from '@/components/CelebrationOverlay';
+import ResultCard from '@/components/ResultCard';
+import ThemeSwatchSwitcher from '@/components/ui/ThemeSwatchSwitcher';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -53,15 +60,6 @@ function getFactInLang(item: { funFact: string; funFactOptions?: { en?: string; 
   return (opts && opts[lang]) || item.funFact;
 }
 
-const THEMES = [
-  { id: 'default', name: 'Default', emoji: '🌈', bg: 'from-orange-50 via-yellow-50 to-green-50', header: 'from-orange-400 via-yellow-400 to-green-400' },
-  { id: 'ocean', name: 'Ocean', emoji: '🌊', bg: 'from-blue-50 via-cyan-50 to-teal-50', header: 'from-blue-500 via-cyan-500 to-teal-500' },
-  { id: 'forest', name: 'Forest', emoji: '🌲', bg: 'from-green-50 via-emerald-50 to-lime-50', header: 'from-green-500 via-emerald-500 to-lime-500' },
-  { id: 'sunset', name: 'Sunset', emoji: '🌅', bg: 'from-orange-50 via-rose-50 to-pink-50', header: 'from-orange-500 via-rose-500 to-pink-500' },
-  { id: 'night', name: 'Night', emoji: '🌙', bg: 'from-slate-50 via-indigo-50 to-purple-50', header: 'from-slate-700 via-indigo-700 to-purple-700' },
-  { id: 'candy', name: 'Candy', emoji: '🍬', bg: 'from-pink-50 via-fuchsia-50 to-violet-50', header: 'from-pink-400 via-fuchsia-400 to-violet-400' },
-];
-
 const LANGUAGES = [
   { id: 'en', name: 'English', emoji: '🇬🇧' },
   { id: 'id', name: 'Indonesia', emoji: '🇮🇩' },
@@ -69,16 +67,24 @@ const LANGUAGES = [
 ];
 
 const ACHIEVEMENT_DEFS = [
-  { type: 'first_scan', title: 'First Discovery!', emoji: '🔍', desc: 'Identify your very first object' },
-  { type: 'scan_5', title: 'Explorer', emoji: '🧭', desc: 'Identify 5 different objects' },
-  { type: 'scan_10', title: 'Scientist', emoji: '🔬', desc: 'Identify 10 different objects' },
-  { type: 'scan_20', title: 'Professor', emoji: '🎓', desc: 'Identify 20 different objects' },
-  { type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯', desc: 'Get a perfect score on a quiz' },
-  { type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩', desc: 'Complete a puzzle correctly' },
-  { type: 'listen_master', title: 'Good Listener', emoji: '👂', desc: 'Listen and identify an object correctly' },
-  { type: 'chat_first', title: 'Chatty Kid', emoji: '💬', desc: 'Send your first chat message' },
-  { type: 'feedback_given', title: 'Helper', emoji: '⭐', desc: 'Submit app feedback' },
+  { type: 'first_scan', emoji: '🔍', titleKey: 'achFirstScan', descKey: 'achFirstScanDesc' },
+  { type: 'scan_5', emoji: '🧭', titleKey: 'achExplorer', descKey: 'achExplorerDesc' },
+  { type: 'scan_10', emoji: '🔬', titleKey: 'achScientist', descKey: 'achScientistDesc' },
+  { type: 'scan_20', emoji: '🎓', titleKey: 'achProfessor', descKey: 'achProfessorDesc' },
+  { type: 'quiz_perfect', emoji: '💯', titleKey: 'achPerfectScore', descKey: 'achPerfectScoreDesc' },
+  { type: 'puzzle_complete', emoji: '🧩', titleKey: 'achPuzzleMaster', descKey: 'achPuzzleMasterDesc' },
+  { type: 'listen_master', emoji: '👂', titleKey: 'achGoodListener', descKey: 'achGoodListenerDesc' },
+  { type: 'chat_first', emoji: '💬', titleKey: 'achChattyKid', descKey: 'achChattyKidDesc' },
+  { type: 'feedback_given', emoji: '⭐', titleKey: 'achHelper', descKey: 'achHelperDesc' },
 ];
+
+const SECTION_COLORS: Record<string, { hex: string; rgb: string; gradient: string }> = {
+  home:    { hex: '#FF6B35', rgb: '255,107,53',  gradient: 'from-orange-400 to-yellow-400' },
+  learn:   { hex: '#00D4FF', rgb: '0,212,255',  gradient: 'from-cyan-400 to-blue-400' },
+  games:   { hex: '#FF2D95', rgb: '255,45,149',  gradient: 'from-pink-500 to-rose-500' },
+  chat:    { hex: '#7FFF00', rgb: '127,255,0',   gradient: 'from-lime-400 to-green-400' },
+  profile: { hex: '#9B5DE5', rgb: '155,93,229',  gradient: 'from-violet-400 to-purple-500' },
+};
 
 // ==================== MAIN APP ====================
 export default function HomePage() {
@@ -94,6 +100,17 @@ export default function HomePage() {
   const [theme, setTheme] = useState('default');
   const [language, setLanguage] = useState('en');
 
+  // Global click ripple effect
+  const [clicks, setClicks] = useState<{ x: number; y: number; id: number }[]>([]);
+
+  const handleGlobalClick = (e: React.MouseEvent) => {
+    const id = Date.now();
+    setClicks(prev => [...prev, { x: e.clientX, y: e.clientY, id }]);
+    setTimeout(() => {
+      setClicks(prev => prev.filter(c => c.id !== id));
+    }, 600);
+  };
+
   // Camera state
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,6 +122,14 @@ export default function HomePage() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [imageRotation, setImageRotation] = useState(0);
+  const [confetti, setConfetti] = useState(false);
+
+  // Confetti trigger
+  const handleCapture = () => {
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 900);
+    captureAndIdentify();
+  };
 
   // Identify state
   const [isIdentifying, setIsIdentifying] = useState(false);
@@ -134,6 +159,7 @@ export default function HomePage() {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [quizGenerating, setQuizGenerating] = useState(false);
   const [quizRevealed, setQuizRevealed] = useState(false);
+  const [quizError, setQuizError] = useState(false);
   const [quizCorrectAnswer, setQuizCorrectAnswer] = useState<string | null>(null);
   const [quizCache, setQuizCache] = useState<Array<{
     historyItem: HistoryItem;
@@ -162,11 +188,106 @@ export default function HomePage() {
 
   // Profile state
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [guestAchievements, setGuestAchievements] = useState<string[]>([]);
+  const [guestCelebrated, setGuestCelebrated] = useState<Set<string>>(new Set());
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [themeFlash, setThemeFlash] = useState(false);
+
+  // Set data-theme attribute and CSS custom properties for theming
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+      // Resolve theme object inline (theme state is already in dependency array)
+      const t = THEMES.find(th => th.id === theme) || THEMES[0];
+      const isDark = t.textHex === '#f8fafc' || t.textHex === '#ffffff' || t.bg.includes('900') || t.bg.includes('950');
+
+      // Button tokens
+      document.documentElement.style.setProperty('--btn-accent', t.accentHex);
+      document.documentElement.style.setProperty('--btn-accent-light', t.accentHex + 'cc');
+      document.documentElement.style.setProperty('--btn-shadow', t.accentHex + '4d');
+      document.documentElement.style.setProperty('--icon-btn-bg', t.accentHex + '1f');
+      document.documentElement.style.setProperty('--bubble-shadow', t.accentHex + '59');
+
+      // Card tokens
+      document.documentElement.style.setProperty('--card-border', isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.06)');
+      document.documentElement.style.setProperty('--card-shadow-color', isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)');
+      document.documentElement.style.setProperty('--card-topper-start', t.accentHex);
+      document.documentElement.style.setProperty('--card-topper-end', t.accentHex + '99');
+
+      // Theme text color
+      document.documentElement.style.setProperty('--theme-text', t.textHex);
+    }
+  }, [theme]);
+
+  // Theme transition flash
+  useEffect(() => {
+    if (themeFlash) {
+      const timer = setTimeout(() => setThemeFlash(false), 450);
+      return () => clearTimeout(timer);
+    }
+  }, [themeFlash]);
+
+  // Celebration state for achievements
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [celebration, setCelebration] = useState<{
+    isOpen: boolean;
+    emoji: string;
+    title: string;
+  }>({ isOpen: false, emoji: '', title: '' });
+
+  const triggerCelebration = useCallback((message: string) => {
+    const parts = message.split(' ');
+    const emoji = parts[0] || '🎉';
+    const title = parts.length > 1 ? parts.slice(1).join(' ') : message;
+    setCelebration({ isOpen: true, emoji, title });
+    setShowConfetti(true);
+  }, []);
+
+  const handleCelebrationClose = useCallback(() => {
+    setCelebration({ isOpen: false, emoji: '', title: '' });
+    setShowConfetti(false);
+  }, []);
+
+  // ---- Theme (needed early for heroBackground) ----
+  const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // Sidebar/MobileTabBar use the actual selected theme color
+  const themedThemeData: ThemeConfig = currentTheme;
+
+  // Section accent still used by CameraView corner brackets and ResultCard
+  const sectionAccent = SECTION_COLORS[activeTab] || SECTION_COLORS.home;
+
+  // Memoized emoji positions to avoid hydration mismatch (Math.random() differs between SSR and client)
+  const floatingEmojiPositions = useMemo(() =>
+    ['📸', '🔬', '🎨', '🌟', '🧩', '📚'].map((emoji, i) => ({
+      emoji,
+      top: `${15 + (i * 11.1) % 70}%`,
+      left: `${10 + (i * 13.7) % 80}%`,
+      duration: 8 + i * 2,
+      index: i,
+    })), []
+  );
+
+  // Memoized background particle animations (stable across re-renders to prevent flickering)
+  const backgroundParticles = useMemo(() =>
+    Array.from({ length: 8 }).map((_, i) => ({
+      y: [0, -20 - Math.random() * 30, 0],
+      x: [0, (Math.random() - 0.5) * 40, 0],
+      rotate: [0, (Math.random() - 0.5) * 40, 0],
+      duration: 6 + Math.random() * 6,
+      delay: i * 0.8,
+      top: `${10 + Math.random() * 80}%`,
+      left: `${5 + Math.random() * 90}%`,
+    })),
+    [] // empty deps = runs once on mount
+  );
+
+  // Animated gradient background style
+  const heroBackground = useMemo(() => ({
+    backgroundImage: `linear-gradient(135deg, ${currentTheme.accentHex}22 0%, ${currentTheme.accentHex}11 30%, transparent 60%), radial-gradient(circle at 80% 20%, ${currentTheme.accentHex}15 0%, transparent 50%), radial-gradient(circle at 20% 80%, ${currentTheme.accentHex}10 0%, transparent 50%)`,
+  }), [currentTheme.accentHex]);
 
   // ---- Load user on mount ----
   useEffect(() => {
@@ -227,8 +348,12 @@ export default function HomePage() {
   // ---- i18n ----
   const { t } = useTranslation(language);
 
-  // ---- Theme ----
-  const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+  // Handle theme portal event from Sidebar
+  useEffect(() => {
+    const handler = () => setShowSettings(true);
+    window.addEventListener('open-theme-portal', handler);
+    return () => window.removeEventListener('open-theme-portal', handler);
+  }, []);
 
   // ---- Achievement count (only count types defined in ACHIEVEMENT_DEFS) ----
   const unlockedCount = ACHIEVEMENT_DEFS.filter(a =>
@@ -353,8 +478,16 @@ export default function HomePage() {
         // Save to DB history
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions, descriptionOptions: result.descriptionOptions, funFactOptions: result.funFactOptions }) }).then(() => fetchHistory()).catch(() => {});
         // Only unlock first_scan if not already unlocked
+        // Always try to unlock — server is idempotent. Only celebrate if this call actually created the achievement.
+        // Check if achievement already exists in local state before requesting
         if (!achievements.some(ach => ach.type === 'first_scan')) {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).catch(() => {});
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).then(r => r.json()).then(data => {
+            // Server returns 201 for NEW achievements, 200 for already-existing (idempotent)
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'first_scan') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`🎉 ${t('achFirstScan')}`);
+            }
+          }).catch(() => {});
         }
       } else {
         // Guest: just save locally
@@ -387,7 +520,6 @@ export default function HomePage() {
   }, [identifyImage]);
 
   // ==================== PLAY VOICE (for replay button) ====================
-
 
   // ==================== HELPER: Pick Random History Item ====================
   const pickRandomHistoryItem = useCallback((excludeId?: string): HistoryItem | null => {
@@ -493,6 +625,7 @@ export default function HomePage() {
     setShowQuizResult(false);
     setQuizGenerating(true);
     setQuizQuestion(t('quizQuestion'));
+    setQuizError(false);
     setQuizScore({ score: 0, total: 1 });
 
     const recentNames = history.slice(0, 10).map(h => h.name).filter(n => n !== item.name);
@@ -516,7 +649,8 @@ export default function HomePage() {
 
     setQuizGenerating(false);
     setQuizOptions([]);
-    setQuizQuestion(t('quizError') || 'Could not generate quiz. Please try again!');
+    setQuizQuestion(t('quizError') || 'Oops! The quiz could not load. Want to try again? 🔄');
+    setQuizError(true);
   }, [activeHistoryItem, currentResult, language, history, quizCache, preloadQuizzes]);
 
   const answerQuiz = (answer: string) => {
@@ -536,10 +670,16 @@ export default function HomePage() {
     if (correct) {
       // Unlock achievement, save score (same as current logic)
       if (user?.id !== 'guest') {
-        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }); } catch {}
+        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }).then(r => r.json()).then(data => {
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'quiz_perfect') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`🏆 ${t('achPerfectScore')}`);
+          }
+        }); } catch {}
         try { await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ score: 1, total: 1 }) }); } catch {}
       } else {
         unlockGuestAchievement('quiz_perfect');
+        triggerCelebration(`🏆 ${t('achPerfectScore')}`);
       }
       // DON'T change activeHistoryItem here - wait until next quiz starts
       // The "Next Question" button will handle it
@@ -583,9 +723,15 @@ export default function HomePage() {
     if (correct) {
       speakBrowserTTS(t('ttsListenCorrect', { word: listenWord }));
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).catch(() => {});
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).then(r => r.json()).then(data => {
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'listen_master') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`👂 ${t('achGoodListener')}`);
+          }
+        }).catch(() => {});
       } else {
         unlockGuestAchievement('listen_master');
+        triggerCelebration(`👂 ${t('achGoodListener')}`);
       }
     } else {
       speakBrowserTTS(t('ttsListenWrong', { word: listenWord }));
@@ -650,9 +796,15 @@ export default function HomePage() {
       setPuzzleResult(correct ? 'correct' : 'incorrect');
       if (correct) {
         if (user?.id !== 'guest') {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).catch(() => {});
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).then(r => r.json()).then(data => {
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'puzzle_complete') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`🧩 ${t('achPuzzleMaster')}`);
+            }
+          }).catch(() => {});
         } else {
           unlockGuestAchievement('puzzle_complete');
+          triggerCelebration(`🧩 ${t('achPuzzleMaster')}`);
         }
         speakBrowserTTS(t('ttsPuzzleComplete'));
       } else {
@@ -669,9 +821,15 @@ export default function HomePage() {
     setChatInput(''); setChatLoading(true);
     if (chatMessages.length === 0) {
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).catch(() => {});
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).then(r => r.json()).then(data => {
+          if (r.status === 201) {
+            setAchievements(prev => prev.some(a => a.type === 'chat_first') ? prev : [...prev, data.achievement]);
+            triggerCelebration(`💬 ${t('achChattyKid')}`);
+          }
+        }).catch(() => {});
       } else {
         unlockGuestAchievement('chat_first');
+        triggerCelebration(`💬 ${t('achChattyKid')}`);
       }
     }
     try {
@@ -691,6 +849,13 @@ export default function HomePage() {
         const res = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }) });
         if (res.ok) {
           setFeedbackSent(true);
+          // Unlock feedback achievement
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'feedback_given', title: 'Helper', emoji: '⭐' }) }).then(r => r.json()).then(data => {
+            if (r.status === 201) {
+              setAchievements(prev => prev.some(a => a.type === 'feedback_given') ? prev : [...prev, data.achievement]);
+              triggerCelebration(`⭐ ${t('achHelper')}`);
+            }
+          }).catch(() => {});
         } else {
           setError('Failed to send feedback. Please try again!');
         }
@@ -720,13 +885,21 @@ export default function HomePage() {
   };
 
   const unlockGuestAchievement = (type: string) => {
-    if (!guestAchievements.includes(type)) {
-      const newAchievements = [...guestAchievements, type];
-      setGuestAchievements(newAchievements);
-      localStorage.setItem('guestAchievements', JSON.stringify(newAchievements));
-      setAchievements(prev => [...prev, { id: type, type, title: ACHIEVEMENT_DEFS.find(d => d.type === type)?.title || type, emoji: ACHIEVEMENT_DEFS.find(d => d.type === type)?.emoji || '🏆', unlockedAt: new Date().toISOString() }]);
+    if (!guestCelebrated.has(type)) {
+      setGuestCelebrated(prev => new Set([...prev, type]));
+      localStorage.setItem('guestCelebrated', JSON.stringify([...guestCelebrated, type]));
+      const def = ACHIEVEMENT_DEFS.find(d => d.type === type);
+      setAchievements(prev => [...prev, { id: type, type, title: def ? t(def.titleKey) : type, emoji: def?.emoji || '🏆', unlockedAt: new Date().toISOString() }]);
     }
   };
+
+  // Load guest celebrated achievements from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('guestCelebrated');
+      if (saved) setGuestCelebrated(new Set(JSON.parse(saved)));
+    } catch {}
+  }, []);
 
   useEffect(() => { if (user && user.id !== 'guest') { fetchHistory(); fetchAchievements(); } }, [user]);
   useEffect(() => { if (activeTab === 'profile' && user && user.id !== 'guest') fetchAchievements(); }, [activeTab, user]);
@@ -770,47 +943,267 @@ export default function HomePage() {
   // ==================== AUTH SCREEN ====================
   if (!user) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br ${currentTheme.bg} p-4`}>
-        <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-7xl mb-4">🔍</motion.div>
-        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-orange-500 to-green-500 bg-clip-text text-transparent">{t('appTitle')}</h1>
-        <p className="text-gray-500 mb-8">{t('appSubtitle')}</p>
-        <AnimatePresence mode="wait">
-          {showAuth ? (
-            <motion.div key={showAuth} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-sm">
-              <h2 className="text-2xl font-bold mb-4 text-center">{showAuth === 'login' ? t('welcomeBack') : t('joinTheFun')}</h2>
-              {authError && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm mb-4 text-center">{authError}</div>}
-              {showAuth === 'register' && (
-                <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('username')}</label>
-                  <Input placeholder="CoolKid123" value={authForm.username} onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))} className="rounded-xl" /></div>
-              )}
-              <div className="mb-3"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('email')}</label>
-                <Input type="email" placeholder="kid@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} className="rounded-xl" /></div>
-              <div className="mb-4"><label className="text-sm font-medium text-gray-600 mb-1 block">{t('password')}</label>
-                <Input type="password" placeholder="••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} className="rounded-xl" /></div>
-              <Button onClick={() => handleAuth(showAuth)} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-xl py-5 text-lg">
-                {showAuth === 'login' ? t('login') : t('createAccount')}
-              </Button>
-              <p className="text-center text-sm text-gray-500 mt-3">
-                {showAuth === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
-                <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="text-purple-600 font-semibold">{showAuth === 'login' ? t('register') : t('login')}</button>
-              </p>
-              <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-2">{t('cancel')}</button>
-            </motion.div>
-          ) : (
-            <motion.div key="buttons" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full max-w-sm">
-              <Button onClick={() => setShowAuth('register')} size="lg" className="bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400 text-white font-bold text-lg rounded-2xl py-6 shadow-xl">
-                🎉 {t('createAccount')}
-              </Button>
-              <Button onClick={() => setShowAuth('login')} size="lg" variant="outline" className="font-bold text-lg rounded-2xl py-6">
-                🔑 {t('login')}
-              </Button>
-              <Button onClick={() => { setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' }); }} variant="ghost" className="text-gray-500">
-                {t('continueAsGuest')}
-              </Button>
-            </motion.div>
-          )}
+      <div className={`min-h-screen flex flex-col items-center justify-center ${currentTheme.bg} p-4 relative overflow-hidden`} style={heroBackground} onClick={handleGlobalClick}>
+        {/* Global click ripple effect */}
+        <AnimatePresence>
+          {clicks.map(click => (
+            <motion.span
+              key={click.id}
+              initial={{ scale: 0, opacity: 0.6 }}
+              animate={{ scale: 3, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              className="fixed rounded-full pointer-events-none"
+              style={{
+                left: click.x,
+                top: click.y,
+                width: 40,
+                height: 40,
+                transform: 'translate(-50%, -50%)',
+                background: currentTheme.accentHex + '40',
+              }}
+            />
+          ))}
         </AnimatePresence>
+        {/* Animated background blobs */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <motion.div
+            animate={{ x: [0, 100, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-gradient-to-br from-orange-300/20 to-yellow-300/20 blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, -80, 0], y: [0, 60, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+            className="absolute bottom-1/4 right-10 w-80 h-80 rounded-full bg-gradient-to-br from-green-300/20 to-teal-300/20 blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, 40, 0], y: [0, -30, 0], scale: [1, 1.3, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 10 }}
+            className="absolute top-1/2 left-1/3 w-72 h-72 rounded-full bg-gradient-to-br from-purple-300/15 to-pink-300/15 blur-3xl"
+          />
+        </div>
+
+        {/* Decorative floating emojis */}
+        {floatingEmojiPositions.map(({ emoji, top, left, duration, index }) => (
+          <motion.div
+            key={emoji}
+            animate={{
+              y: [0, -30 - index * 10, 0],
+              rotate: [0, (emoji.charCodeAt(0) % 40) - 20, 0],
+            }}
+            transition={{
+              duration,
+              repeat: Infinity,
+              delay: index * 0.8,
+              ease: "easeInOut",
+            }}
+            className="absolute text-3xl opacity-10 pointer-events-none"
+            style={{ top, left }}
+          >
+            {emoji}
+          </motion.div>
+        ))}
+
+        <Confetti isActive={showConfetti} />
+
+        <CelebrationOverlay
+          isOpen={celebration.isOpen}
+          emoji={celebration.emoji}
+          title={celebration.title}
+          onClose={handleCelebrationClose}
+          accentColor={currentTheme?.accent || 'orange'}
+          accentHex={currentTheme?.accentHex || '#fb923c'}
+          buttonRadius={currentTheme?.buttonRadius || 'rounded-2xl'}
+          lang={language}
+        />
+
+        {/* Main content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md mx-auto">
+          {/* Animated hero icon */}
+          <motion.div
+            animate={{ y: [0, -12, 0], scale: [1, 1.05, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="text-8xl mb-6 drop-shadow-xl"
+          >
+            🔍
+          </motion.div>
+
+          {/* App title with gradient */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-4xl sm:text-5xl font-extrabold mb-2 text-center font-fredoka leading-tight"
+            style={{
+              background: `linear-gradient(135deg, ${currentTheme.accentHex}, #facc15 50%, ${currentTheme.accentHex})`,
+              backgroundSize: '200% 200%',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'gradientShift 8s ease infinite',
+            }}
+          >
+            {t('appTitle')}
+          </motion.h1>
+
+          {/* App subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-gray-500 mb-10 text-center text-base font-medium"
+          >
+            {t('appSubtitle')}
+          </motion.p>
+
+          <AnimatePresence mode="wait">
+            {showAuth ? (
+              <motion.div
+                key={showAuth}
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full border border-gray-100/50"
+                style={{ boxShadow: '0 25px 60px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.03)' }}
+              >
+                <h2 className="text-2xl font-extrabold mb-6 text-center font-fredoka" style={{ color: 'var(--kid-accent-hex)' }}>
+                  {showAuth === 'login' ? '👋 ' + t('welcomeBack') : '🎉 ' + t('joinTheFun')}
+                </h2>
+
+                {authError && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm mb-5 text-center font-medium border border-red-200"
+                  >
+                    {authError}
+                  </motion.div>
+                )}
+
+                {showAuth === 'register' && (
+                  <div className="mb-4">
+                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('username')}</label>
+                    <Input
+                      placeholder="CoolKid123"
+                      value={authForm.username}
+                      onChange={e => setAuthForm(p => ({ ...p, username: e.target.value }))}
+                      className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('email')}</label>
+                  <Input
+                    type="email"
+                    placeholder="kid@example.com"
+                    value={authForm.email}
+                    onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))}
+                    className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <label className="text-sm font-semibold text-gray-600 mb-1.5 block">{t('password')}</label>
+                  <Input
+                    type="password"
+                    placeholder="••••••"
+                    value={authForm.password}
+                    onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))}
+                    className="rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15 transition-all font-fredoka py-4 text-base"
+                  />
+                </div>
+
+                <Button onClick={() => handleAuth(showAuth)} className="w-full font-bold text-lg rounded-2xl py-5 shadow-lg hover:shadow-xl transition-all font-fredoka"
+                  style={{
+                    background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                    color: 'white',
+                    boxShadow: `0 8px 30px ${currentTheme.accentHex}33`,
+                  }}
+                >
+                  {showAuth === 'login' ? t('login') : t('createAccount')}
+                </Button>
+
+                <p className="text-center text-sm text-gray-500 mt-4 font-fredoka">
+                  {showAuth === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
+                  <button onClick={() => setShowAuth(showAuth === 'login' ? 'register' : 'login')} className="font-semibold hover:underline ml-1" style={{ color: currentTheme.accentHex }}>
+                    {showAuth === 'login' ? t('register') : t('login')}
+                  </button>
+                </p>
+
+                <button onClick={() => setShowAuth(null)} className="w-full text-center text-sm text-gray-400 mt-3 hover:text-gray-600 transition-colors">{t('cancel')}</button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="buttons"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
+                className="flex flex-col gap-4 w-full max-w-sm relative z-10"
+              >
+                <motion.div
+                  whileHover={{ y: -3, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button size="lg" className="w-full font-extrabold text-lg rounded-2xl py-7 shadow-2xl font-fredoka tracking-wide"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}dd)`,
+                      color: 'white',
+                      boxShadow: `0 12px 40px ${currentTheme.accentHex}44`,
+                      border: 'none',
+                    }}
+                  >
+                    🎉 {t('createAccount')}
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                  <Button size="lg" variant="outline" className="w-full font-bold text-lg rounded-2xl py-7 border-2 font-fredoka"
+                    style={{
+                      borderColor: `${currentTheme.accentHex}55`,
+                      color: currentTheme.accentHex,
+                      background: `${currentTheme.accentHex}08`,
+                    }}
+                    onClick={() => setShowAuth('login')}
+                  >
+                    🔑 {t('login')}
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ x: 5 }}>
+                  <Button variant="ghost" className="text-gray-500 hover:text-gray-700 font-fredoka w-full" onClick={() => {
+                    setUser({ id: 'guest', username: 'guest', email: '', displayName: 'Guest', avatar: null, isPro: false, theme: 'default', language: 'en' });
+                  }}>
+                    👤 {t('continueAsGuest')}
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Trust badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="flex items-center justify-center gap-4 mt-8 text-sm text-gray-400"
+          >
+            <div className="flex items-center gap-1">
+              <Shield className="h-4 w-4 text-green-400" />
+              <span>Safe</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Laugh className="h-4 w-4 text-yellow-400" />
+              <span>Fun</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="h-4 w-4 text-red-400" />
+              <span>Kid-Friendly</span>
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -821,455 +1214,703 @@ export default function HomePage() {
   const showPlaceholder = !cameraActive && !capturedImage;
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gradient-to-br ${currentTheme.bg}`}>
-      {/* Header */}
-      <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
-        <div className="relative max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
-              <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-gradient-to-br ${currentTheme.bg}`} style={{ color: currentTheme.textHex }} onClick={handleGlobalClick}>
+      {/* Theme transition flash */}
+      {themeFlash && (
+        <div
+          className="theme-transition-flash"
+          style={{ '--theme-flash-color': (THEMES.find(t => t.id === theme)?.accentHex || '#fb923c') + '30' } as React.CSSProperties}
+        />
+      )}
+      {/* Global click ripple effect */}
+      <AnimatePresence>
+        {clicks.map(click => (
+          <motion.span
+            key={click.id}
+            initial={{ scale: 0, opacity: 0.6 }}
+            animate={{ scale: 3, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+            className="fixed rounded-full pointer-events-none"
+            style={{
+              left: click.x,
+              top: click.y,
+              width: 40,
+              height: 40,
+              transform: 'translate(-50%, -50%)',
+              background: currentTheme.accentHex + '40',
+            }}
+          />
+        ))}
+      </AnimatePresence>
+      {/* Celebration Overlay - rendered here for main app view */}
+      <CelebrationOverlay
+        isOpen={celebration.isOpen}
+        emoji={celebration.emoji}
+        title={celebration.title}
+        onClose={handleCelebrationClose}
+        accentColor={currentTheme?.accent || 'orange'}
+        accentHex={currentTheme?.accentHex || '#fb923c'}
+        buttonRadius={currentTheme?.buttonRadius || 'rounded-2xl'}
+        lang={language}
+      />
+
+      {/* Confetti */}
+      <Confetti isActive={showConfetti} />
+
+      {/* Animated background decorations */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {backgroundParticles.map((anim, i) => (
+          <motion.div
+            key={i}
+            animate={{
+              y: anim.y,
+              x: anim.x,
+              rotate: anim.rotate,
+            }}
+            transition={{
+              duration: anim.duration,
+              repeat: Infinity,
+              delay: anim.delay,
+              ease: "easeInOut",
+            }}
+            className="absolute text-2xl opacity-20"
+            style={{
+              top: anim.top,
+              left: anim.left,
+            }}
+          >
+            {currentTheme.emoji}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Sidebar - desktop only */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} user={user} />
+
+      {/* Main area (Header + Content + Footer) */}
+      <div className="flex-1 flex flex-col min-h-screen px-4 md:px-0">
+        {/* Header */}
+        <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
+          <div className="relative max-w-2xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
+              <div>
+                <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
+                <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
-            <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>⚙️ {t('settings')}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            {user?.isPro && (
+        {/* Settings Dialog */}
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent className="max-w-sm" style={{ background: currentTheme.textHex === '#f8fafc' ? 'rgba(30,30,50,0.95)' : 'white', borderColor: currentTheme.textHex === '#f8fafc' ? 'rgba(99,102,241,0.3)' : undefined }}>
+            <DialogHeader><DialogTitle style={{ color: currentTheme.textHex === '#f8fafc' ? '#e2e8f0' : undefined }}>⚙️ {t('settings')}</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              {user?.isPro && (
+                <div>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex, textShadow: currentTheme.textHex === '#f8fafc' ? '0 1px 2px rgba(0,0,0,0.5)' : 'none' }}>🎨 {t('theme')}</label>
+                  <ThemeSwatchSwitcher
+                    currentTheme={theme}
+                    onThemeChange={(id) => { setTheme(id); setThemeFlash(true); user?.id !== 'guest' ? updateProfile({ theme: id }) : localStorage.setItem('theme', id); }}
+                    isDarkTheme={currentTheme.textHex === '#f8fafc'}
+                  />
+                </div>
+              )}
               <div>
-                <label className="text-sm font-semibold mb-2 block">🎨 {t('theme')}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {THEMES.map(tm => (
-                    <button key={tm.id} onClick={() => { setTheme(tm.id); user?.id !== 'guest' ? updateProfile({ theme: tm.id }) : localStorage.setItem('theme', tm.id); }}
-                      className={`p-2 rounded-xl text-xs font-medium transition-all ${theme === tm.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                      {tm.emoji} {t('theme' + tm.id.charAt(0).toUpperCase() + tm.id.slice(1))}
+                <label className="text-sm font-bold mb-2 block" style={{ color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex, textShadow: currentTheme.textHex === '#f8fafc' ? '0 1px 2px rgba(0,0,0,0.5)' : 'none' }}>🌐 {t('languageLabel')}</label>
+                <div className="flex gap-2">
+                  {LANGUAGES.map(l => (
+                    <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
+                      className="flex-1 p-2 rounded-xl text-xs font-medium transition-all font-fredoka"
+                      style={{
+                        color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex,
+                        background: language === l.id
+                          ? currentTheme.accentHex
+                          : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.12)' : 'white',
+                        border: `2px solid ${language === l.id ? currentTheme.accentHex : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.15)' : '#e5e7eb'}`,
+                        boxShadow: language === l.id ? `0 0 16px ${currentTheme.accentHex}88` : currentTheme.textHex === '#f8fafc' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+                      }}>
+                      {l.emoji} {l.name}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-            <div>
-              <label className="text-sm font-semibold mb-2 block">🌐 {t('languageLabel')}</label>
-              <div className="flex gap-2">
-                {LANGUAGES.map(l => (
-                  <button key={l.id} onClick={() => { setLanguage(l.id); user?.id !== 'guest' ? updateProfile({ language: l.id }) : localStorage.setItem('language', l.id); }}
-                    className={`flex-1 p-2 rounded-xl text-xs font-medium transition-all ${language === l.id ? 'ring-2 ring-purple-400 bg-purple-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    {l.emoji} {l.name}
-                  </button>
-                ))}
-              </div>
+              {!user.isPro && (
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
+                  <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
+                  <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
+                  <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
+                </div>
+              )}
             </div>
-            {!user.isPro && (
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 text-center">
-                <Crown className="h-5 w-5 text-yellow-500 mx-auto mb-1" />
-                <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
-                <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
-                <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-3 flex flex-col gap-3 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-          <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-white/80 shadow-sm p-1 mb-2">
-            <TabsTrigger value="home" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-yellow-400 data-[state=active]:text-white"><Home className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('home')}</span></TabsTrigger>
-            <TabsTrigger value="learn" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-400 data-[state=active]:text-white"><BookOpen className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('learn')}</span></TabsTrigger>
-            <TabsTrigger value="games" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"><Gamepad2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('games')}</span></TabsTrigger>
-            <TabsTrigger value="chat" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('chat')}</span></TabsTrigger>
-            <TabsTrigger value="profile" className="rounded-xl text-[10px] sm:text-xs gap-0.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-red-400 data-[state=active]:text-white"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t('me')}</span></TabsTrigger>
-          </TabsList>
-
-          {/* ============ HOME TAB ============ */}
-          <TabsContent value="home" className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pb-2">
-            {/* Camera View */}
-            <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black aspect-[4/3] max-h-[45vh]">
-              <video ref={videoRef} playsInline muted autoPlay
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`} />
-              <AnimatePresence>
-                {showCaptured && (
-                  <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    src={capturedImage!} alt="Captured" className="absolute inset-0 w-full h-full object-contain z-20 bg-black"
-                    style={{ transform: `rotate(${imageRotation}deg)` }} />
+        {/* Main Content - responsive width */}
+        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-20 md:pb-4 flex flex-col gap-4 relative z-10">
+          {/* Home Tab */}
+          {activeTab === 'home' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4"
+            >
+              {/* Camera View */}
+              <div className="relative" style={{ filter: `drop-shadow(0 8px 32px ${sectionAccent.hex}30)` }}>
+              <div
+                className="relative rounded-3xl overflow-hidden bg-black aspect-[4/3] max-h-[45vh]"
+                style={{
+                  width: '100%',
+                  boxShadow: cameraActive ? `0 0 8px ${sectionAccent.hex}, 0 0 24px ${sectionAccent.hex}40` : 'none',
+                  animation: cameraActive ? 'camera-breathing 2s ease-in-out infinite' : 'none',
+                }}
+              >
+                {/* Scanning line */}
+                {showCameraFeed && (
+                  <div
+                    className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${sectionAccent.hex}, transparent)`,
+                      animation: 'scan-sweep 2s linear infinite',
+                      animationDelay: '0.5s',
+                    }}
+                  />
                 )}
-              </AnimatePresence>
-              {showPlaceholder && (
-                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white gap-3 z-30">
-                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2, repeat: Infinity }} className="text-5xl">📸</motion.div>
-                  <p className="text-sm font-bold text-center">{t('readyToExplore')}</p>
-                  <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
-                </div>
-              )}
-              {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-10 w-10 text-yellow-400" /></motion.div></div>}
-              {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-10 w-10 text-yellow-400" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
-              {error && <div className="absolute bottom-3 left-3 right-3 z-40"><div className="bg-red-500/90 text-white px-3 py-2 rounded-xl text-xs font-medium text-center">{error}</div></div>}
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-center gap-3">
-              {capturedImage && currentResult ? (
-                <>
-                  <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
-                  <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                  <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
-                </>
-              ) : cameraActive ? (
-                <>
-                  <Btn icon={<SwitchCamera className="h-5 w-5" />} onClick={switchCamera} color="white" />
-                  <BigBtn onClick={captureAndIdentify} disabled={isIdentifying}>📷</BigBtn>
-                  <Btn icon={<ImagePlus className="h-5 w-5" />} onClick={() => fileInputRef.current?.click()} color="white" />
-                </>
-              ) : (
-                <div className="flex items-center gap-3">
-                  {cameraSupported && <Button onClick={() => startCamera()} className="bg-gradient-to-r from-orange-400 to-green-400 text-white font-bold rounded-full px-6 py-5"><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
-                  <Button onClick={() => fileInputRef.current?.click()} className="bg-gradient-to-r from-purple-400 to-pink-400 text-white font-bold rounded-full px-6 py-5"><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
-                </div>
-              )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
-                stopCamera(); setCameraActive(false); setImageRotation(0);
-                const img = new Image();
-                img.onload = () => {
-                  const aspect = 4/3;
-                  const imgAspect = img.width / img.height;
-                  let sx = 0, sy = 0, sw = img.width, sh = img.height;
-                  if (imgAspect > aspect) { sw = sh * aspect; sx = (img.width - sw) / 2; }
-                  else { sh = sw / aspect; sy = (img.height - sh) / 2; }
-                  const c = document.createElement('canvas');
-                  c.width = sw; c.height = sh;
-                  c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-                  identifyImage(c.toDataURL('image/jpeg', 0.8));
-                };
-                img.src = r.result as string;
-              }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
-            </div>
+                {(cameraActive || capturedImage) && (
+                  <>
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute top-3 left-3 w-6 h-6 border-t-3 border-l-3 rounded-tl-lg origin-top-left z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.12, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute top-3 right-3 w-6 h-6 border-t-3 border-r-3 rounded-tr-lg origin-top-right z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.24, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute bottom-3 left-3 w-6 h-6 border-b-3 border-l-3 rounded-bl-lg origin-bottom-left z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                    <motion.div initial={{ scaleX: 0, scaleY: 0 }} animate={{ scaleX: 1, scaleY: 1 }} transition={{ delay: 0.36, type: 'spring' as const, stiffness: 260, damping: 22 }}
+                      className="absolute bottom-3 right-3 w-6 h-6 border-b-3 border-r-3 rounded-br-lg origin-bottom-right z-50 bg-transparent"
+                      style={{ borderColor: sectionAccent.hex }}
+                    />
+                  </>
+                )}
 
-            {/* Result Card */}
-            <AnimatePresence>
-              {currentResult && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} key="result">
-                  <Card className="border-2 border-yellow-200 bg-white/90 shadow-xl overflow-hidden">
-                    <div className="h-1.5 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-400" />
+                <video ref={videoRef} playsInline muted autoPlay
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity ${showCameraFeed ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                  style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                />
+                <AnimatePresence>
+                  {showCaptured && (
+                    <motion.img key="captured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      src={capturedImage!} alt="Captured" className="absolute inset-0 w-full h-full object-contain z-20 bg-black"
+                      style={{ transform: `rotate(${imageRotation}deg)` }} />
+                  )}
+                </AnimatePresence>
+                {showPlaceholder && (
+                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white gap-3 z-30"
+                    style={{ background: `linear-gradient(135deg, ${sectionAccent.hex}30 0%, ${sectionAccent.hex}10 100%)` }}>
+                    <motion.div animate={{ y: [0, -6, 0], scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }} className="text-6xl">📸</motion.div>
+                    <p className="text-base font-bold text-center">{t('readyToExplore')}</p>
+                    <p className="text-xs text-gray-400 text-center">{cameraSupported ? t('useCameraOrUpload') : t('uploadAnImage')}</p>
+                  </div>
+                )}
+                {cameraLoading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Camera className="h-12 w-12 text-yellow-400 drop-shadow-lg" /></motion.div></div>}
+                {isIdentifying && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3 z-40"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-12 w-12 text-yellow-400 drop-shadow-lg" /></motion.div><p className="text-white font-bold text-sm">{t('identifying')}</p></div>}
+                {error && <div className="absolute bottom-4 left-4 right-4 z-40"><motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/90 text-white px-4 py-2.5 rounded-xl text-xs font-medium text-center backdrop-blur-sm shadow-lg">{error}</motion.div></div>}
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="relative flex items-center justify-center gap-3">
+                {capturedImage && currentResult ? (
+                  <>
+                    <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
+                    <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
+                    <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
+                  </>
+                ) : (cameraActive || cameraLoading) ? (
+                  <>
+                    {/* Close camera button - uses theme accent */}
+                    <Button onClick={(e) => { e.stopPropagation(); stopCamera(); setCameraActive(false); }}
+                      className="text-white rounded-full p-4 border border-white/20"
+                      style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
+                      <X className="h-6 w-6" />
+                    </Button>
+
+                    {/* Switch camera button - uses theme accent */}
+                    <Button onClick={(e) => { e.stopPropagation(); switchCamera(); }}
+                      className="text-white rounded-full p-4 border border-white/20"
+                      style={{ background: `${currentTheme.accentHex}`, boxShadow: `0 4px 12px ${currentTheme.accentHex}60` }}>
+                      <SwitchCamera className="h-6 w-6" />
+                    </Button>
+
+                    {/* Capture button with confetti - uses theme accent */}
+                    <div className="relative">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={(e) => { e.stopPropagation(); handleCapture(); }}
+                        disabled={isIdentifying}
+                        className="flex items-center gap-2 px-8 py-4 rounded-full text-white font-bold text-base font-fredoka shadow-lg transition-all hover:shadow-xl cursor-pointer"
+                        style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 6px 24px ${currentTheme.accentHex}50` }}
+                      >
+                        <Camera className="h-6 w-6" />
+                        {/* Confetti particles inside button */}
+                        {confetti && (
+                          <div className="absolute inset-0 pointer-events-none overflow-visible">
+                            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
+                              <motion.div
+                                key={deg}
+                                initial={{ scale: 0, opacity: 1, x: 0, y: 0 }}
+                                animate={{ scale: [0, 1.2, 0], opacity: [1, 1, 0], x: Math.cos((deg * Math.PI) / 180) * 60, y: Math.sin((deg * Math.PI) / 180) * 60 }}
+                                transition={{ duration: 0.5, delay: i * 0.02 }}
+                                className="absolute w-2 h-2 rounded-full"
+                                style={{ background: [currentTheme.accentHex, '#fbbf24', '#34d399', '#f472b6', '#60a5fa'][i % 5], left: '50%', top: '50%' }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </motion.button>
+                    </div>
+
+                    {/* Upload button - uses theme accent */}
+                    <Button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                      className="text-white font-bold rounded-full px-6 py-4"
+                      style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}>
+                      <Upload className="h-5 w-5" />
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    {cameraSupported && <Button onClick={(e) => { e.stopPropagation(); startCamera(); }} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Camera className="h-5 w-5 mr-2" />{t('camera')}</Button>}
+                    <Button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-white font-bold rounded-full px-6 py-5" style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`, boxShadow: `0 4px 16px ${currentTheme.accentHex}40` }}><Upload className="h-5 w-5 mr-2" />{t('upload')}</Button>
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => {
+                  stopCamera(); setCameraActive(false); setImageRotation(0);
+                  const img = new Image();
+                  img.onload = () => {
+                    const aspect = 4/3;
+                    const imgAspect = img.width / img.height;
+                    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+                    if (imgAspect > aspect) { sw = sh * aspect; sx = (img.width - sw) / 2; }
+                    else { sh = sw / aspect; sy = (img.height - sh) / 2; }
+                    const c = document.createElement('canvas');
+                    c.width = sw; c.height = sh;
+                    c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+                    identifyImage(c.toDataURL('image/jpeg', 0.8));
+                  };
+                  img.src = r.result as string;
+                }; r.readAsDataURL(f); e.target.value = ''; }} className="hidden" />
+              </div>
+
+              {/* Result Card */}
+              <ResultCard
+                result={currentResult}
+                language={language}
+                onListen={() => { setActiveTab('learn'); startListen(); }}
+                onQuiz={() => { setActiveTab('games'); startQuiz(); }}
+                onPuzzle={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }}
+                getNameInLang={getNameInLang}
+                getDescInLang={getDescInLang}
+                getFactInLang={getFactInLang}
+                sectionAccent={sectionAccent}
+              />
+            </motion.div>
+          )}
+
+          {/* Learn Tab */}
+          {activeTab === 'learn' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4"
+            >
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
+
+                {/* Listen and Pick */}
+                {listenWord && listenOptions.length > 0 ? (
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
                     <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="text-4xl sm:text-5xl">{currentResult.emoji}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{getNameInLang(currentResult, language)}</h2>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">{currentResult.category}</Badge>
-                            {currentResult.warning && <Badge className="bg-red-100 text-red-700 text-[10px]">⚠️ {currentResult.warning}</Badge>}
-                          </div>
-                          <p className="text-sm text-gray-600">{getDescInLang(currentResult, language)}</p>
-                          <div className="mt-2 p-2 bg-yellow-50 rounded-xl border border-yellow-100">
-                            <div className="flex items-center gap-1 mb-0.5"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /><span className="text-[10px] font-bold text-yellow-700">{t('funFact')}</span></div>
-                            <p className="text-xs text-yellow-800">{getFactInLang(currentResult, language)}</p>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <button onClick={() => { setActiveTab('learn'); startListen(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">👂 {t('listenBtn')}</button>
-                            <button onClick={() => { setActiveTab('games'); startQuiz(); }} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100">🧠 {t('quizBtn')}</button>
-                            <button onClick={() => { setPuzzleHistoryItem(activeHistoryItem || currentResult); setActiveTab('games'); startPuzzle(); }} className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg font-medium hover:bg-purple-100">🧩 {t('puzzleBtn')}</button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-          </TabsContent>
-
-          {/* ============ LEARN TAB ============ */}
-          <TabsContent value="learn" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-green-500" /> {t('learnPractice')}</h3>
-
-              {/* Listen and Pick */}
-              {listenWord && listenOptions.length > 0 ? (
-                <Card className="border-2 border-green-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
-                    <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
-                    <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
-                    {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
-                    {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {listenOptions.map((opt, i) => (
-                        <button key={i} onClick={() => answerListen(getNameInLang(opt, language))} disabled={listenAnswer !== null}
-                          className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (getNameInLang(opt, language) === listenWord ? 'border-green-400 bg-green-50' : getNameInLang(opt, language) === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
-                          <img src={opt.imageData} alt={getNameInLang(opt, language)} className="w-full aspect-square object-cover" />
-                          <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {getNameInLang(opt, language)}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
-                      <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-gray-200 bg-white/60"><CardContent className="p-4 text-center text-gray-400 text-sm">
-                  {t('identifyFirstListen')}
-                </CardContent></Card>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* ============ GAMES TAB ============ */}
-          <TabsContent value="games" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
-
-              {/* Quiz */}
-              {quizActive ? (
-                <Card className="border-2 border-green-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
-                    {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
-                    <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
-                    {quizGenerating ? (
-                      <div className="flex items-center justify-center py-6">
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-6 w-6 text-green-400" /></motion.div>
-                        <span className="ml-2 text-sm text-gray-500">{t('generating') || 'Generating options...'}</span>
-                      </div>
-                    ) : quizOptions.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {quizOptions.map((opt, i) => (
-                          <button key={i} onClick={() => answerQuiz(opt)}
-                            className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
-                            {opt}
+                      <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
+                      <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
+                      <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
+                      {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
+                      {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {listenOptions.map((opt, i) => (
+                          <button key={i} onClick={() => answerListen(getNameInLang(opt, language))} disabled={listenAnswer !== null}
+                            className={`rounded-xl border-2 overflow-hidden transition-all ${listenAnswer ? (getNameInLang(opt, language) === listenWord ? 'border-green-400 bg-green-50' : getNameInLang(opt, language) === listenAnswer ? 'border-red-400 bg-red-50' : 'border-gray-200 opacity-50') : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
+                            <img src={opt.imageData} alt={getNameInLang(opt, language)} className="w-full aspect-square object-cover" />
+                            <div className="p-1 text-xs font-medium text-gray-700 truncate">{opt.emoji} {getNameInLang(opt, language)}</div>
                           </button>
                         ))}
                       </div>
-                    ) : null}
-                    {/* Reveal Answer button - shown after answering but before reveal */}
-                    {quizAnswer && !quizRevealed && (
-                      <div className="mt-3 flex gap-2 justify-center">
-                        <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
-                          {t('revealAnswer') || 'Reveal Answer'}
-                        </button>
-                        <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
-                          {t('tryAnother') || 'Try Another Question'}
-                        </button>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
+                        <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
                       </div>
-                    )}
-                    {/* Result shown after revealing */}
-                    {showQuizResult && quizRevealed && (
-                      <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                        {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
-                        <div className="mt-2">
-                          <button onClick={startQuiz} className="text-xs underline">
-                            {quizScore.score === 1 ? (t('nextQuestion') || 'Next Question') : (t('tryAnother') || 'Try Another Question')}
+                    </CardContent>
+                  </Card>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle} opacity-60`}
+                  >
+                  <Card><CardContent className="p-4 text-center text-gray-400 text-sm">
+                    {t('identifyFirstListen')}
+                  </CardContent></Card>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Games Tab */}
+          {activeTab === 'games' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4"
+            >
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-purple-500" /> {t('miniGames')}</h3>
+
+                {/* Quiz */}
+                {quizActive ? (
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
+                    <CardContent className="p-4">
+                      <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
+                      {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
+                      <p className="font-medium text-gray-700 mb-3">{quizQuestion}</p>
+                      {quizGenerating ? (
+                        <div className="flex items-center justify-center py-6">
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><Sparkles className="h-6 w-6 text-green-400" /></motion.div>
+                          <span className="ml-2 text-sm text-gray-500">{t('generating') || 'Generating options...'}</span>
+                        </div>
+                      ) : quizOptions.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {quizOptions.map((opt, i) => (
+                            <button key={i} onClick={() => answerQuiz(opt)}
+                              className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      ) : quizError ? (
+                        <div className="text-center py-4">
+                          <div className="text-4xl mb-2">😅</div>
+                          <p className="text-sm text-gray-600 mb-4">{quizQuestion}</p>
+                          <button
+                            onClick={() => { setQuizError(false); setQuizQuestion(t('quizQuestion')); startQuiz(); }}
+                            className="bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 rounded-xl text-sm font-bold hover:shadow-lg transition-all"
+                          >
+                            🔄 {t('tryAgain') || 'Try Again'}
                           </button>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="text-3xl">🧠</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </CardContent>
-                </Card>
-              )}
+                      ) : null}
+                      {/* Reveal Answer button - shown after answering but before reveal */}
+                      {quizAnswer && !quizRevealed && (
+                        <div className="mt-3 flex gap-2 justify-center">
+                          <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
+                            {t('revealAnswer') || 'Reveal Answer'}
+                          </button>
+                          <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
+                            {t('tryAnother') || 'Try Another Question'}
+                          </button>
+                        </div>
+                      )}
+                      {/* Result shown after revealing */}
+                      {showQuizResult && quizRevealed && (
+                        <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
+                          <div className="mt-2">
+                            <button onClick={startQuiz} className="text-xs underline">
+                              {quizScore.score === 1 ? (t('nextQuestion') || 'Next Question') : (t('tryAnother') || 'Try Another Question')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="text-3xl">🧠</div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </CardContent>
+                  </Card>
+                  </motion.div>
+                )}
 
-              {/* Puzzle */}
-              {puzzleActive ? (
-                <Card className="border-2 border-purple-200 bg-white/90">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold">{t('puzzleChallenge')}</h4>
-                      <div className="flex items-center gap-2">
-                        {history.length > 1 && (
-                          <button onClick={() => {
-                            const newItem = pickRandomHistoryItem(puzzleHistoryItem?.id || activeHistoryItem?.id);
-                            if (newItem) {
-                              setPuzzleHistoryItem(newItem);
-                              setPuzzleActive(false);
-                              setTimeout(() => startPuzzle(), 0);
-                            }
-                          }} className="text-xs text-purple-600 hover:underline">
+                {/* Puzzle */}
+                {puzzleActive ? (
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold">{t('puzzleChallenge')}</h4>
+                        <div className="flex items-center gap-2">
+                          {history.length > 1 && (
+                            <button onClick={() => {
+                              const newItem = pickRandomHistoryItem(puzzleHistoryItem?.id || activeHistoryItem?.id);
+                              if (newItem) {
+                                setPuzzleHistoryItem(newItem);
+                                setPuzzleActive(false);
+                                setTimeout(() => startPuzzle(), 0);
+                              }
+                            }} className="text-xs text-purple-600 hover:underline">
                             {t('newImage') || 'New Image'}
                           </button>
-                        )}
-                        <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); setPuzzleHistoryItem(null); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
-                      </div>
-                    </div>
-                    {puzzlePieceWidth > 0 && (
-                    <div className="grid grid-cols-2 gap-1.5 mb-3">
-                      {puzzleSlots.map((piece, i) => (
-                        <div key={i} onClick={() => placePiece(i)}
-                          className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
-                          style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
-                          {!piece && <span className="text-gray-300 text-xl">+</span>}
+                          )}
+                          <button onClick={() => { setPuzzleActive(false); setPuzzleOriginalPieces([]); setPuzzleImageWidth(0); setPuzzleImageHeight(0); setPuzzlePieceWidth(0); setPuzzlePieceHeight(0); setPuzzleHistoryItem(null); }} className="text-xs text-gray-500 hover:underline">{t('close')}</button>
                         </div>
-                      ))}
-                    </div>
-                    )}
-                    {/* Puzzle result feedback */}
-                    {puzzleResult && (
-                      <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
-                        <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
-                        <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
-                          {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
-                        </p>
                       </div>
-                    )}
-                    {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
-                    {puzzlePieceWidth > 0 && (
-                    <div className="grid grid-cols-4 gap-1.5 mt-2">
-                      {puzzlePieces.map((piece, i) => (
-                        <div key={i} onClick={() => setSelectedPiece(i)}
-                          className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
-                          style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
-                      ))}
-                    </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="text-3xl">🧩</div>
-                    <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* ============ CHAT TAB ============ */}
-          <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col pb-2">
-            <div className="flex-1 min-h-0 flex flex-col bg-white/60 rounded-2xl shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2 p-3 border-b border-gray-100">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
-                <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
-              </div>
-              <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
-                <div className="space-y-2">
-                  {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
-                  {chatMessages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                        {m.content}
+                      {puzzlePieceWidth > 0 && (
+                      <div className="grid grid-cols-2 gap-1.5 mb-3">
+                        {puzzleSlots.map((piece, i) => (
+                          <div key={i} onClick={() => placePiece(i)}
+                            className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
+                            style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
+                            {!piece && <span className="text-gray-300 text-xl">+</span>}
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
-                  {chatLoading && <div className="flex justify-start"><div className="bg-gray-100 px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse">{t('chatThinking')}</div></div>}
-                </div>
-              </ScrollArea>
-              <div className="flex gap-2 p-2 border-t border-gray-100">
-                <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
-                <Button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ============ PROFILE TAB ============ */}
-          <TabsContent value="profile" className="flex-1 min-h-0 overflow-y-auto pb-2">
-            <div className="space-y-4">
-              {/* User Info */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4 flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
-                  <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
-                  {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
-                </div>
-              </CardContent></Card>
-
-              {/* Achievements */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
-                <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
-                <div className="grid grid-cols-3 gap-2">
-                  {ACHIEVEMENT_DEFS.map(a => {
-                    const unlocked = achievements.find(ach => ach.type === a.type);
-                    return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={a.desc}>
-                      <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
-                      <p className="text-[10px] font-medium mt-1">{a.title}</p>
-                      <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{a.desc}</p>
-                    </div>;
-                  })}
-                </div>
-              </CardContent></Card>
-
-              {/* History */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
-                  {history.length > 0 && (
-                    <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
-                      <Trash2 className="h-3 w-3" /> Clear All
-                    </button>
-                  )}
-                </div>
-                {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
-                  <div className="overflow-y-auto max-h-72">
-                    <div className="space-y-1.5">{history.slice(0, 20).map(item => (
-                      <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
-                        <span className="text-xl">{item.emoji}</span>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
-                          <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                      )}
+                      {/* Puzzle result feedback */}
+                      {puzzleResult && (
+                        <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
+                          <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
+                          <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
+                            {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
+                          </p>
                         </div>
-                        <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${getDescInLang(item, language)}`); }} />
-                        <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
-                          <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
-                        </button>
+                      )}
+                      {!puzzleResult && <p className="text-[10px] text-gray-500 text-center">{t('puzzleInstruction')}</p>}
+                      {puzzlePieceWidth > 0 && (
+                      <div className="grid grid-cols-4 gap-1.5 mt-2">
+                        {puzzlePieces.map((piece, i) => (
+                          <div key={i} onClick={() => setSelectedPiece(i)}
+                            className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
+                            style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
+                        ))}
                       </div>
-                    ))}</div>
-                  </div>
-                )}
-              </CardContent></Card>
-
-              {/* Feedback */}
-              <Card className="bg-white/90 shadow-sm"><CardContent className="p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
-                {feedbackSent ? (
-                  <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  </motion.div>
                 ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-500">How do you like this app?</p>
-                    <div className="flex gap-1">{[1, 2, 3, 4, 5].map(s => (
-                      <button key={s} onClick={() => setFeedbackRating(s)} className={`text-2xl transition-transform hover:scale-125 ${s <= feedbackRating ? '' : 'grayscale opacity-40'}`}>
-                        {s <= feedbackRating ? '⭐' : '☆'}
-                      </button>
-                    ))}</div>
-                    <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
-                    <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
-                  </div>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`card-style-${currentTheme.cardStyle}`}
+                  >
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="text-3xl">🧩</div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </CardContent>
+                  </Card>
+                  </motion.div>
                 )}
-              </CardContent></Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+              </div>
+            </motion.div>
+          )}
 
-      {/* Footer */}
-      <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
-        <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
-      </footer>
+          {/* Chat Tab */}
+          {activeTab === 'chat' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4"
+            >
+              <div className={`flex-1 min-h-0 flex flex-col card-style-${currentTheme.cardStyle} overflow-hidden`}>
+                <div className="flex items-center gap-2 p-3 border-b border-gray-100">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
+                  <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
+                </div>
+                <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
+                  <div className="space-y-2">
+                    {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
+                    {chatMessages.map((m, i) => (
+                      <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-white text-gray-900 border border-gray-300 shadow-md'}`}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && <div className="flex justify-start"><div className="bg-white px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse border border-gray-300">{t('chatThinking')}</div></div>}
+                  </div>
+                </ScrollArea>
+                <div className="flex gap-2 p-2 border-t border-gray-100">
+                  <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
+                  <Button onClick={(e) => { e.stopPropagation(); sendChat(); }} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex-1 flex flex-col gap-4"
+            >
+              <div className="space-y-4">
+                {/* User Info */}
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
+                    <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
+                    {!user.isPro && <button onClick={upgradeToPro} disabled={upgrading} className="text-[10px] text-purple-600 font-medium mt-0.5 hover:underline">{upgrading ? t('upgrading') : `⬆️ ${t('upgradeToPro')}`}</button>}
+                  </div>
+                </CardContent></Card>
+                </motion.div>
+
+                {/* Achievements */}
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
+                  <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {ACHIEVEMENT_DEFS.map(a => {
+                      const unlocked = achievements.find(ach => ach.type === a.type);
+                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={t(a.descKey)}>
+                        <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
+                        <p className="text-[10px] font-medium mt-1">{t(a.titleKey)}</p>
+                        <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{t(a.descKey)}</p>
+                      </div>;
+                    })}
+                  </div>
+                </CardContent></Card>
+                </motion.div>
+
+                {/* History */}
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
+                    {history.length > 0 && (
+                      <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
+                        <Trash2 className="h-3 w-3" /> Clear All
+                      </button>
+                    )}
+                  </div>
+                  {history.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">No discoveries yet! 📸</p> : (
+                    <div className="overflow-y-auto max-h-72">
+                      <div className="space-y-1.5">{history.slice(0, 20).map(item => (
+                        <div key={item.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 group">
+                          <span className="text-xl">{item.emoji}</span>
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveTab('home'); setCapturedImage(item.imageData); setCurrentResult(item); }}>
+                            <p className="text-sm font-medium truncate">{getNameInLang(item, language)}</p><p className="text-[10px] text-gray-400">{item.category}</p>
+                          </div>
+                          <Volume2 className="h-3.5 w-3.5 text-gray-400 shrink-0" onClick={e => { e.stopPropagation(); speakBrowserTTS(`${getNameInLang(item, language)}. ${getDescInLang(item, language)}`); }} />
+                          <button onClick={e => { e.stopPropagation(); deleteHistoryItem(item.id); }} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded">
+                            <X className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                          </button>
+                        </div>
+                      ))}</div>
+                    </div>
+                  )}
+                </CardContent></Card>
+                </motion.div>
+
+                {/* Feedback */}
+                <motion.div
+                  whileHover={{ y: -3 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                <Card><CardContent className="p-4">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
+                  {feedbackSent ? (
+                    <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-500">How do you like this app?</p>
+                      <div className="flex gap-1">{[1, 2, 3, 4, 5].map(s => (
+                        <button key={s} onClick={() => setFeedbackRating(s)} className={`text-2xl transition-transform hover:scale-125 ${s <= feedbackRating ? '' : 'grayscale opacity-40'}`}>
+                          {s <= feedbackRating ? '⭐' : '☆'}
+                        </button>
+                      ))}</div>
+                      <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
+                      <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
+                    </div>
+                  )}
+                </CardContent></Card>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
+          <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
+        </footer>
+      </div>
+
+      {/* Mobile Tab Bar - mobile only */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+        <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} themeData={themedThemeData} language={language} />
+      </div>
     </div>
   );
 }
@@ -1293,7 +1934,3 @@ function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; on
     </Button>
   </motion.div>;
 }
-
-
-
-
