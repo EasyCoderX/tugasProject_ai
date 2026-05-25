@@ -106,7 +106,7 @@ export default function ResultCard({
               transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.05 }}
               className="w-full rounded-3xl overflow-hidden"
               style={{
-                background: 'rgba(255,255,255,0.92)',
+                background: 'var(--kid-card-bg)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
                 boxShadow: `0 8px 40px ${activeColor}25, 0 0 0 1px ${activeColor}15`,

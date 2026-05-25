@@ -91,8 +91,9 @@ export default function ResultCard({
 
               {/* Front face — result card with glass morphism */}
               <Card
-                className="bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl"
+                className="backdrop-blur-xl shadow-2xl"
                 style={{
+                  background: 'var(--kid-card-bg)',
                   boxShadow: `0 8px 32px ${activeColor}20, 0 0 0 1px ${activeColor}10`,
                   backdropFilter: 'blur(20px)',
                 }}

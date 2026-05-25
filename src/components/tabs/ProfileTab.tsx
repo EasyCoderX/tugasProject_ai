@@ -71,7 +71,7 @@ export default function ProfileTab({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="card-kid">
+          <Card className="card-kid" style={{ background: 'var(--kid-card-bg)' }}>
             <CardContent className="p-5 flex items-center gap-4">
               {/* Avatar with gradient ring */}
               <motion.div
@@ -119,7 +119,7 @@ export default function ProfileTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="card-kid">
+          <Card className="card-kid" style={{ background: 'var(--kid-card-bg)' }}>
             <CardContent className="p-5">
               <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2 font-fredoka text-base">
                 <Trophy className="h-4 w-4" style={{ color: 'var(--kid-accent-hex)' }} /> {tLocal('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})
@@ -138,8 +138,16 @@ export default function ProfileTab({
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.05 }}
-                      className={`p-3 rounded-2xl text-center transition-all cursor-default
-                        ${unlocked ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-gray-50 border-2 border-gray-100 opacity-50'}`}
+                      className="p-3 rounded-2xl text-center transition-all cursor-default border-2"
+                      style={{
+                        background: unlocked
+                          ? 'rgb(var(--kid-accent-rgb) / 0.18)'
+                          : 'rgb(var(--kid-accent-rgb) / 0.08)',
+                        borderColor: unlocked
+                          ? 'rgb(var(--kid-accent-rgb) / 0.35)'
+                          : 'rgb(var(--kid-accent-rgb) / 0.15)',
+                        opacity: unlocked ? 1 : 0.5,
+                      }}
                       title={t(a.descKey)}
                     >
                       <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
@@ -159,7 +167,7 @@ export default function ProfileTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="card-kid">
+          <Card className="card-kid" style={{ background: 'var(--kid-card-bg)' }}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-bold text-gray-800 flex items-center gap-2 font-fredoka text-base">
@@ -231,7 +239,7 @@ export default function ProfileTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="card-kid">
+          <Card className="card-kid" style={{ background: 'var(--kid-card-bg)' }}>
             <CardContent className="p-5">
               <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2 font-fredoka text-base">
                 ⭐ {tLocal('feedback') || 'Feedback'}
