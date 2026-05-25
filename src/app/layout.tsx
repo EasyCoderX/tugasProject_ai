@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   keywords: ["kids", "learning", "AI", "object recognition", "camera", "education", "children"],
   authors: [{ name: "STAR Team" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>",
   },
   openGraph: {
     title: "What's This? - AI Object Learning for Kids",
