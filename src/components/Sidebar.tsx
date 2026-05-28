@@ -309,14 +309,13 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
             </Tooltip>
           )}
 
-          {/* ── 8. COLLAPSE TOGGLE — floating half-overlapping ─────── */}
-          <div className="relative">
-            {/* Floating toggle button, half-overlapping bottom-right border */}
+          {/* ── 8. COLLAPSE TOGGLE — centered at bottom edge ──────── */}
+          <div className="flex justify-center pt-1">
             <motion.button
               onClick={() => setCollapsed(!collapsed)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.92 }}
-              className="absolute right-2 bottom-0 translate-y-1/2 z-50 flex items-center justify-center rounded-full transition-all shadow-lg"
+              className="flex items-center justify-center rounded-full transition-all shadow-lg z-50"
               style={{
                 width: '2rem',
                 height: '2rem',

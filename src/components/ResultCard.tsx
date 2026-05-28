@@ -6,6 +6,7 @@ import { Star, Volume2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/lib/i18n';
 import type { IdentifyResult } from '@/lib/helpers';
+import type { ThemeConfig } from '@/lib/themes';
 import { staggerContainer, staggerItem, emojiBounce, contentReveal } from '@/lib/animation';
 
 interface ResultCardProps {
@@ -18,6 +19,7 @@ interface ResultCardProps {
   getDescInLang: (item: IdentifyResult, lang: string) => string;
   getFactInLang: (item: IdentifyResult, lang: string) => string;
   sectionAccent?: { hex: string; rgb: string; gradient: string };
+  themeData?: ThemeConfig;
 }
 
 export default function ResultCard({
@@ -30,11 +32,16 @@ export default function ResultCard({
   getDescInLang,
   getFactInLang,
   sectionAccent,
+  themeData,
 }: ResultCardProps) {
   const { t } = useTranslation(language);
   const [showBack, setShowBack] = useState(true);
 
-  const activeColor = sectionAccent?.hex || '#FF6B35';
+  // Theme-aware values — prefer theme accent over section accent
+  const activeColor = themeData?.accentHex || sectionAccent?.hex || '#FF6B35';
+  const cardRadius = themeData?.cardStyle === 'organic' ? '1.5rem 1.25rem 1.75rem 1.25rem / 1.25rem 1.75rem 1.25rem 1.5rem'
+    : themeData?.cardStyle === 'wavy' ? '1.5rem 2rem 1.5rem 2rem / 2rem 1.5rem 2rem 1.5rem'
+    : '1.5rem';
 
   useEffect(() => {
     if (result) {
@@ -53,7 +60,7 @@ export default function ResultCard({
           initial={{ opacity: 0, scale: 0.8, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          whileHover={{ y: -3 }}
+          whileHover={themeData?.cardStyle === 'bouncy' ? { y: -3 } : undefined}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           style={{ perspective: 1200 }}
         >
@@ -64,9 +71,10 @@ export default function ResultCard({
               initial={{ rotateY: 0, opacity: 1 }}
               animate={{ rotateY: showBack ? 0 : 180, opacity: showBack ? 1 : 0 }}
               transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl"
+              className="absolute inset-0 flex flex-col items-center justify-center"
               style={{
                 background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)`,
+                borderRadius: cardRadius,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 transformOrigin: 'center center',
@@ -104,11 +112,12 @@ export default function ResultCard({
               initial={{ rotateY: -180, opacity: 0 }}
               animate={{ rotateY: showBack ? -180 : 0, opacity: showBack ? 0 : 1 }}
               transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.05 }}
-              className="w-full rounded-3xl overflow-hidden"
+              className="w-full overflow-hidden"
               style={{
-                background: 'rgba(255,255,255,0.92)',
+                background: 'var(--kid-card-bg)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
+                borderRadius: cardRadius,
                 boxShadow: `0 8px 40px ${activeColor}25, 0 0 0 1px ${activeColor}15`,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
@@ -116,7 +125,12 @@ export default function ResultCard({
               }}
             >
               {/* Accent top bar */}
-              <div className={`h-2 bg-gradient-to-r ${sectionAccent?.gradient || 'from-orange-400 to-yellow-400'}`} />
+              <div
+                className="h-2"
+                style={{
+                  background: `linear-gradient(135deg, ${activeColor}, ${activeColor}aa)`,
+                }}
+              />
 
               <div className="p-6">
                 <motion.div
@@ -132,9 +146,10 @@ export default function ResultCard({
                   {/* Name + Badge */}
                   <motion.div variants={contentReveal} className="flex items-center justify-center gap-3 mb-3 flex-wrap">
                     <h2
-                      className="text-2xl sm:text-3xl font-extrabold font-fredoka"
+                      className="text-2xl sm:text-3xl font-extrabold"
                       style={{
-                        background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)`,
+                        fontFamily: themeData?.fontFamily === 'font-sans' ? 'var(--font-nunito)' : 'var(--font-fredoka)',
+                        backgroundImage: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)`,
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         backgroundClip: 'text',
@@ -142,7 +157,7 @@ export default function ResultCard({
                     >
                       {getNameInLang(result, language)}
                     </h2>
-                    <Badge className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                    <Badge className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: `${activeColor}20`, color: activeColor }}>
                       {result.category}
                     </Badge>
                   </motion.div>
@@ -151,6 +166,7 @@ export default function ResultCard({
                   <motion.p
                     variants={contentReveal}
                     className="text-sm text-gray-600 text-center leading-relaxed mb-4 max-w-md mx-auto"
+                    style={{ fontFamily: themeData?.fontFamily === 'font-sans' ? 'var(--font-nunito)' : 'var(--font-fredoka)' }}
                   >
                     {getDescInLang(result, language)}
                   </motion.p>
@@ -180,11 +196,11 @@ export default function ResultCard({
                   {/* Action Buttons */}
                   <motion.div variants={contentReveal} className="flex justify-center gap-3 flex-wrap">
                     <motion.button
-                      whileHover={{ scale: 1.08, boxShadow: '0 6px 20px rgba(16,185,129,0.4)' }}
+                      whileHover={{ scale: 1.08, boxShadow: `0 6px 20px ${activeColor}60` }}
                       whileTap={{ scale: 0.94 }}
                       onClick={onListen}
-                      className="px-5 py-2.5 text-white rounded-2xl font-semibold font-fredoka text-sm shadow-md transition-shadow"
-                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                      className={`px-5 py-2.5 text-white font-semibold text-sm shadow-md transition-shadow ${themeData?.buttonRadius || 'rounded-2xl'}`}
+                      style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
                     >
                       <Volume2 className="h-4 w-4 inline mr-1.5" />{t('listenBtn')}
                     </motion.button>
@@ -192,17 +208,17 @@ export default function ResultCard({
                       whileHover={{ scale: 1.08, boxShadow: `0 6px 20px ${activeColor}60` }}
                       whileTap={{ scale: 0.94 }}
                       onClick={onQuiz}
-                      className="px-5 py-2.5 text-white rounded-2xl font-semibold font-fredoka text-sm shadow-md transition-shadow"
+                      className={`px-5 py-2.5 text-white font-semibold text-sm shadow-md transition-shadow ${themeData?.buttonRadius || 'rounded-2xl'}`}
                       style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
                     >
                       🧠 {t('quizBtn')}
                     </motion.button>
                     <motion.button
-                      whileHover={{ scale: 1.08, boxShadow: '0 6px 20px rgba(139,92,246,0.4)' }}
+                      whileHover={{ scale: 1.08, boxShadow: `0 6px 20px ${activeColor}60` }}
                       whileTap={{ scale: 0.94 }}
                       onClick={onPuzzle}
-                      className="px-5 py-2.5 text-white rounded-2xl font-semibold font-fredoka text-sm shadow-md transition-shadow"
-                      style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+                      className={`px-5 py-2.5 text-white font-semibold text-sm shadow-md transition-shadow ${themeData?.buttonRadius || 'rounded-2xl'}`}
+                      style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
                     >
                       🧩 {t('puzzleBtn')}
                     </motion.button>

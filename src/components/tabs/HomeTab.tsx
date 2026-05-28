@@ -83,8 +83,11 @@ export default function HomeTab({
       {/* Camera View - Centered Hero Card */}
       <div className="max-w-lg mx-auto px-1 w-full">
         <div
-          className="relative rounded-3xl overflow-hidden bg-white/90 backdrop-blur-xl border border-white/50"
-          style={sectionAccent ? { filter: `drop-shadow(0 8px 32px ${sectionAccent.hex}30)` } : {}}
+          className="relative rounded-3xl overflow-hidden backdrop-blur-xl border border-white/50"
+          style={{
+            background: 'var(--kid-card-bg)',
+            ...(sectionAccent ? { filter: `drop-shadow(0 8px 32px ${sectionAccent.hex}30)` } : {}),
+          }}
         >
           {/* Radial glow behind */}
           <div

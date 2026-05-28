@@ -386,7 +386,6 @@
 .card-style-bouncy {
   background: var(--kid-card-bg);
   border-radius: var(--radius-xl);
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
   box-shadow: 0 4px 20px var(--kid-shadow-color);
   overflow: hidden;
   transition: all 0.3s ease;
@@ -400,7 +399,6 @@
 .card-style-flat {
   background: var(--kid-card-bg);
   border-radius: var(--radius-xl);
-  border: 1px solid rgb(var(--kid-accent-rgb) / 0.1);
   transition: all 0.2s ease;
 }
 .card-style-flat:hover {
@@ -411,7 +409,6 @@
 .card-style-raised {
   background: var(--kid-card-bg);
   border-radius: var(--radius-xl);
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
   box-shadow: 0 10px 40px var(--kid-shadow-color);
   overflow: hidden;
   transition: all 0.3s ease;
@@ -425,7 +422,6 @@
 .card-style-warm {
   background: var(--kid-card-bg);
   border-radius: var(--radius-xl);
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.25);
   box-shadow: 0 4px 20px var(--kid-shadow-color), inset 0 0 30px rgba(244, 63, 94, 0.05);
   overflow: hidden;
   transition: all 0.3s ease;
@@ -438,7 +434,6 @@
 /* Wavy - subtle wave shape */
 .card-style-wavy {
   background: var(--kid-card-bg);
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
   border-radius: 1.5rem 2rem 1.5rem 2rem / 2rem 1.5rem 2rem 1.5rem;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -449,7 +444,6 @@
 .card-style-organic {
   background: var(--kid-card-bg);
   border-radius: 1.5rem 1.25rem 1.75rem 1.25rem / 1.25rem 1.75rem 1.25rem 1.5rem;
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.2);
   padding: 1.5rem 2rem;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -462,7 +456,6 @@
 .card-style-glow {
   background: var(--kid-card-bg);
   border-radius: var(--radius-xl);
-  border: 2px solid rgb(var(--kid-accent-rgb) / 0.3);
   animation: pulse-glow 2s ease-in-out infinite;
   overflow: hidden;
   transition: all 0.3s ease;

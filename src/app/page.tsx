@@ -13,11 +13,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Sidebar from '@/components/Sidebar';
 import MobileTabBar from '@/components/MobileTabBar';
+import Header from '@/components/Header';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTranslation, type Lang } from '@/lib/i18n';
@@ -252,6 +252,16 @@ export default function HomePage() {
 
   // ---- Theme (needed early for heroBackground) ----
   const currentTheme = THEMES.find(th => th.id === theme) || THEMES[0];
+
+  // Theme-driven card styling for consistent look across all tabs
+  const cardTheme = {
+    border: `2px solid ${currentTheme.accentHex}22`,
+    boxShadow: `0 4px 20px ${currentTheme.accentHex}15`,
+    background: currentTheme.textHex === '#f8fafc'
+      ? `linear-gradient(135deg, ${currentTheme.accentHex}08 0%, ${currentTheme.accentHex}04 100%)`
+      : `linear-gradient(135deg, ${currentTheme.accentHex}04 0%, transparent 100%)`,
+    borderRadius: currentTheme.cardStyle === 'glow' ? '1rem' : '0.75rem',
+  };
 
   // Sidebar/MobileTabBar use the actual selected theme color
   const themedThemeData: ThemeConfig = currentTheme;
@@ -1064,8 +1074,11 @@ export default function HomePage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full border border-gray-100/50"
-                style={{ boxShadow: '0 25px 60px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.03)' }}
+                className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 w-full"
+                style={{
+                  border: `2px solid ${currentTheme.accentHex}20`,
+                  boxShadow: `0 25px 60px ${currentTheme.accentHex}15, 0 0 0 1px ${currentTheme.accentHex}08`,
+                }}
               >
                 <h2 className="text-2xl font-extrabold mb-6 text-center font-fredoka" style={{ color: 'var(--kid-accent-hex)' }}>
                   {showAuth === 'login' ? '👋 ' + t('welcomeBack') : '🎉 ' + t('joinTheFun')}
@@ -1290,27 +1303,15 @@ export default function HomePage() {
 
       {/* Main area (Header + Content + Footer) */}
       <div className="flex-1 flex flex-col min-h-screen px-4 md:px-0">
-        {/* Header */}
-        <header className={`relative overflow-hidden bg-gradient-to-r ${currentTheme.header} py-3 px-4 shadow-lg`}>
-          <div className="relative max-w-2xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }} className="text-2xl sm:text-3xl">🔍</motion.div>
-              <div>
-                <h1 className="text-lg sm:text-2xl font-extrabold text-white drop-shadow-md">{t('appTitle')}</h1>
-                <p className="text-[10px] sm:text-xs text-white/80">{t('hiUser', { name: user.displayName || user.username })}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              {user.isPro && <Badge className="bg-yellow-400 text-yellow-900 text-[10px]"><Crown className="h-3 w-3 mr-0.5" />PRO</Badge>}
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full h-8 w-8">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
+        <Header
+          user={user}
+          themeData={themedThemeData}
+          onSettingsToggle={() => setShowSettings(prev => !prev)}
+          onLogout={handleLogout}
+          upgrading={upgrading}
+          onUpgrade={upgradeToPro}
+          language={language}
+        />
 
         {/* Settings Dialog */}
         <Dialog open={showSettings} onOpenChange={setShowSettings}>
@@ -1359,7 +1360,10 @@ export default function HomePage() {
         </Dialog>
 
         {/* Main Content - responsive width */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-4 py-4 pb-20 md:pb-4 flex flex-col gap-4 relative z-10">
+        <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 pb-20 md:pb-4 flex flex-col gap-4 relative z-10"
+          style={{
+            borderTop: `3px solid ${currentTheme.accentHex}18`,
+          }}>
           {/* Home Tab */}
           {activeTab === 'home' && (
             <motion.div
@@ -1441,9 +1445,9 @@ export default function HomePage() {
               <div className="relative flex items-center justify-center gap-3">
                 {capturedImage && currentResult ? (
                   <>
-                    <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="orange" />
-                    <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="teal" />
-                    <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="purple" />
+                    <Btn icon={<RotateCcw className="h-5 w-5" />} onClick={resetView} color="theme" accentHex={currentTheme.accentHex} />
+                    <Btn icon={<RotateCw className="h-5 w-5" />} onClick={rotateImage} color="theme" accentHex={currentTheme.accentHex} />
+                    <Btn icon={<Volume2 className="h-5 w-5" />} onClick={() => speakBrowserTTS(getNameInLang(currentResult!, language) + '. ' + getDescInLang(currentResult!, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(currentResult!, language) }))} color="theme" accentHex={currentTheme.accentHex} />
                   </>
                 ) : (cameraActive || cameraLoading) ? (
                   <>
@@ -1532,6 +1536,7 @@ export default function HomePage() {
                 getDescInLang={getDescInLang}
                 getFactInLang={getFactInLang}
                 sectionAccent={sectionAccent}
+                themeData={currentTheme}
               />
             </motion.div>
           )}
@@ -1554,11 +1559,21 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle}`}
                   >
-                  <Card>
+                  <Card style={{
+                    border: cardTheme.border,
+                    boxShadow: cardTheme.boxShadow,
+                    background: cardTheme.background,
+                    borderRadius: cardTheme.borderRadius,
+                  }}>
                     <CardContent className="p-4">
                       <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2">👂 {t('listenChallengeTitle')}</h4>
                       <p className="text-xs text-gray-500 mb-3">{t('listenInstruction')}</p>
-                      <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">🔊 {t('playSound')}</button>
+                      <button onClick={() => speakBrowserTTS(listenWord)} className="mb-3 text-white px-4 py-2 rounded-full text-xs font-bold font-fredoka shadow-md hover:shadow-lg transition-all"
+                        style={{
+                          background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                          boxShadow: `0 4px 12px ${currentTheme.accentHex}40`,
+                        }}
+                      >🔊 {t('playSound')}</button>
                       {listenResult === 'correct' && <div className="bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenCorrect')}</div>}
                       {listenResult === 'wrong' && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-xl text-sm font-medium mb-2">{t('listenWrong')}</div>}
                       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -1572,7 +1587,12 @@ export default function HomePage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">{t('nextWord')}: {listenScore.score}/{listenScore.total}</span>
-                        <Button onClick={startListen} size="sm" className="bg-green-500 text-white rounded-xl text-xs">{t('nextWord')}</Button>
+                        <Button onClick={startListen} size="sm" className="text-white rounded-full text-xs font-bold font-fredoka shadow-md hover:shadow-lg transition-all"
+                          style={{
+                            background: `linear-gradient(135deg, #22c55e, #16a34a)`,
+                            boxShadow: `0 4px 12px rgba(34,197,94,0.4)`,
+                          }}
+                        >{t('nextWord')}</Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1583,8 +1603,13 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle} opacity-60`}
                   >
-                  <Card><CardContent className="p-4 text-center text-gray-400 text-sm">
-                    {t('identifyFirstListen')}
+                  <Card style={{
+                    border: `2px dashed ${currentTheme.accentHex}30`,
+                    boxShadow: `0 4px 20px ${currentTheme.accentHex}08`,
+                    background: cardTheme.background,
+                    borderRadius: cardTheme.borderRadius,
+                  }}><CardContent className="p-4 text-center" style={{ color: `${currentTheme.accentHex}99` }}>
+                    <p className="text-sm">{t('identifyFirstListen')}</p>
                   </CardContent></Card>
                   </motion.div>
                 )}
@@ -1610,7 +1635,12 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle}`}
                   >
-                  <Card>
+                  <Card style={{
+                    border: cardTheme.border,
+                    boxShadow: cardTheme.boxShadow,
+                    background: cardTheme.background,
+                    borderRadius: cardTheme.borderRadius,
+                  }}>
                     <CardContent className="p-4">
                       <h4 className="font-bold mb-3 flex items-center gap-2">{t('quizChallenge')}</h4>
                       {(activeHistoryItem?.imageData || capturedImage) && <img src={activeHistoryItem?.imageData || capturedImage} alt="Quiz image" className="w-full rounded-xl mb-3 max-h-32 object-contain bg-gray-100" />}
@@ -1624,7 +1654,12 @@ export default function HomePage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {quizOptions.map((opt, i) => (
                             <button key={i} onClick={() => answerQuiz(opt)}
-                              className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? 'bg-blue-100 border-2 border-blue-400 text-blue-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                              className={`p-3 rounded-xl text-sm font-medium transition-all ${quizAnswer && quizRevealed ? (opt === quizCorrectAnswer ? 'bg-green-100 border-2 border-green-400 text-green-700' : opt === quizAnswer ? 'bg-red-100 border-2 border-red-400 text-red-700' : 'bg-gray-50 text-gray-400') : quizAnswer === opt ? '' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-2 border-gray-200 hover:border-gray-300'}`}
+                              style={quizAnswer === opt && !quizRevealed ? {
+                                background: `${currentTheme.accentHex}15`,
+                                borderColor: currentTheme.accentHex,
+                                color: currentTheme.accentHex,
+                              } : undefined}>
                               {opt}
                             </button>
                           ))}
@@ -1635,7 +1670,11 @@ export default function HomePage() {
                           <p className="text-sm text-gray-600 mb-4">{quizQuestion}</p>
                           <button
                             onClick={() => { setQuizError(false); setQuizQuestion(t('quizQuestion')); startQuiz(); }}
-                            className="bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 rounded-xl text-sm font-bold hover:shadow-lg transition-all"
+                            className="text-white px-4 py-2 rounded-full text-sm font-bold font-fredoka hover:shadow-lg transition-all"
+                            style={{
+                              background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                              boxShadow: `0 4px 12px ${currentTheme.accentHex}40`,
+                            }}
                           >
                             🔄 {t('tryAgain') || 'Try Again'}
                           </button>
@@ -1644,7 +1683,12 @@ export default function HomePage() {
                       {/* Reveal Answer button - shown after answering but before reveal */}
                       {quizAnswer && !quizRevealed && (
                         <div className="mt-3 flex gap-2 justify-center">
-                          <button onClick={revealQuizAnswer} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600">
+                          <button onClick={revealQuizAnswer} className="text-white px-4 py-2 rounded-full text-sm font-medium"
+                            style={{
+                              background: `linear-gradient(135deg, #22c55e, #16a34a)`,
+                              boxShadow: `0 4px 12px rgba(34,197,94,0.4)`,
+                            }}
+                          >
                             {t('revealAnswer') || 'Reveal Answer'}
                           </button>
                           <button onClick={startQuiz} className="text-xs text-gray-500 hover:underline">
@@ -1654,7 +1698,13 @@ export default function HomePage() {
                       )}
                       {/* Result shown after revealing */}
                       {showQuizResult && quizRevealed && (
-                        <div className={`mt-3 p-3 rounded-xl text-sm font-medium text-center ${quizScore.score === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        <div className={`mt-3 p-4 rounded-2xl text-sm font-bold text-center font-fredoka shadow-sm`}
+                          style={{
+                            background: quizScore.score === 1 ? `${currentTheme.accentHex}12` : '#fef2f2',
+                            border: `2px solid ${quizScore.score === 1 ? `${currentTheme.accentHex}40` : '#fecaca'}`,
+                            color: quizScore.score === 1 ? currentTheme.accentHex : '#dc2626',
+                          }}
+                        >
                           {quizScore.score === 1 ? t('correctAnswer') : t('wrongAnswer', { name: quizCorrectAnswer || '' })}
                           <div className="mt-2">
                             <button onClick={startQuiz} className="text-xs underline">
@@ -1672,10 +1722,16 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle}`}
                   >
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}>
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(currentResult || history.length > 0) ? startQuiz : undefined}
+                    style={{
+                      border: cardTheme.border,
+                      boxShadow: cardTheme.boxShadow,
+                      background: cardTheme.background,
+                      borderRadius: cardTheme.borderRadius,
+                    }}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="text-3xl">🧠</div>
-                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800 font-fredoka">{t('quizCardTitle')}</h4><p className="text-xs text-gray-500">{currentResult ? t('testKnowledge') : t('identifyFirst')}</p></div>
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     </CardContent>
                   </Card>
@@ -1689,7 +1745,12 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle}`}
                   >
-                  <Card>
+                  <Card style={{
+                    border: cardTheme.border,
+                    boxShadow: cardTheme.boxShadow,
+                    background: cardTheme.background,
+                    borderRadius: cardTheme.borderRadius,
+                  }}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-bold">{t('puzzleChallenge')}</h4>
@@ -1702,7 +1763,8 @@ export default function HomePage() {
                                 setPuzzleActive(false);
                                 setTimeout(() => startPuzzle(), 0);
                               }
-                            }} className="text-xs text-purple-600 hover:underline">
+                            }} className="text-xs hover:underline font-fredoka"
+                            style={{ color: currentTheme.accentHex }}>
                             {t('newImage') || 'New Image'}
                           </button>
                           )}
@@ -1713,8 +1775,8 @@ export default function HomePage() {
                       <div className="grid grid-cols-2 gap-1.5 mb-3">
                         {puzzleSlots.map((piece, i) => (
                           <div key={i} onClick={() => placePiece(i)}
-                            className={`rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid border-purple-300 bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
-                            style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight }}>
+                            className={`rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${piece ? 'border-solid bg-center bg-no-repeat' : 'border-gray-300 bg-gray-50'}`}
+                            style={piece ? { backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight, borderColor: `${currentTheme.accentHex}55`, borderStyle: 'solid', boxShadow: `0 2px 8px ${currentTheme.accentHex}20` } : { aspectRatio: puzzlePieceWidth / puzzlePieceHeight, boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)' }}>
                             {!piece && <span className="text-gray-300 text-xl">+</span>}
                           </div>
                         ))}
@@ -1722,9 +1784,14 @@ export default function HomePage() {
                       )}
                       {/* Puzzle result feedback */}
                       {puzzleResult && (
-                        <div className={`text-center p-3 rounded-lg ${puzzleResult === 'correct' ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-300'}`}>
+                        <div className="text-center p-3 rounded-xl"
+                          style={{
+                            background: puzzleResult === 'correct' ? `${currentTheme.accentHex}12` : '#fef2f2',
+                            border: `2px solid ${puzzleResult === 'correct' ? `${currentTheme.accentHex}40` : '#fecaca'}`,
+                          }}
+                        >
                           <div className="text-2xl mb-1">{puzzleResult === 'correct' ? '✅' : '❌'}</div>
-                          <p className={`text-sm font-bold ${puzzleResult === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
+                          <p className="text-sm font-bold" style={{ color: puzzleResult === 'correct' ? currentTheme.accentHex : '#dc2626' }}>
                             {puzzleResult === 'correct' ? t('puzzleCorrect') : t('puzzleIncorrect')}
                           </p>
                         </div>
@@ -1734,8 +1801,8 @@ export default function HomePage() {
                       <div className="grid grid-cols-4 gap-1.5 mt-2">
                         {puzzlePieces.map((piece, i) => (
                           <div key={i} onClick={() => setSelectedPiece(i)}
-                            className={`rounded-lg bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200'}`}
-                            style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight }} />
+                            className={`rounded-xl bg-center bg-no-repeat cursor-pointer border-2 transition-all ${selectedPiece === i ? 'shadow-lg scale-105' : 'border-gray-200 hover:shadow-md'}`}
+                            style={{ backgroundImage: `url(${piece})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: puzzlePieceWidth / puzzlePieceHeight, borderColor: selectedPiece === i ? currentTheme.accentHex : undefined, boxShadow: selectedPiece === i ? `0 4px 16px ${currentTheme.accentHex}40` : undefined }} />
                         ))}
                       </div>
                       )}
@@ -1748,10 +1815,16 @@ export default function HomePage() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`card-style-${currentTheme.cardStyle}`}
                   >
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}>
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={(capturedImage || history.length > 0) ? startPuzzle : undefined}
+                    style={{
+                      border: cardTheme.border,
+                      boxShadow: cardTheme.boxShadow,
+                      background: cardTheme.background,
+                      borderRadius: cardTheme.borderRadius,
+                    }}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="text-3xl">🧩</div>
-                      <div className="flex-1"><h4 className="font-bold text-gray-800">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
+                      <div className="flex-1"><h4 className="font-bold text-gray-800 font-fredoka">{t('puzzleGameTitle')}</h4><p className="text-xs text-gray-500">{capturedImage ? t('solvePuzzle') : t('identifyFirstPuzzle')}</p></div>
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     </CardContent>
                   </Card>
@@ -1769,17 +1842,30 @@ export default function HomePage() {
               exit={{ opacity: 0, y: -20 }}
               className="flex-1 flex flex-col gap-4"
             >
-              <div className={`flex-1 min-h-0 flex flex-col card-style-${currentTheme.cardStyle} overflow-hidden`}>
-                <div className="flex items-center gap-2 p-3 border-b border-gray-100">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
-                  <div><p className="text-sm font-bold text-gray-800">{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
+              <div className={`flex-1 min-h-0 flex flex-col card-style-${currentTheme.cardStyle} overflow-hidden`}
+                style={{
+                  border: cardTheme.border,
+                  boxShadow: cardTheme.boxShadow,
+                  borderRadius: currentTheme.cardStyle === 'glow' ? '1rem' : '0.75rem',
+                }}>
+                <div className="flex items-center gap-2 p-3"
+                  style={{ borderBottom: `2px solid ${currentTheme.accentHex}18` }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
+                    style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)` }}>🤖</div>
+                  <div><p className="text-sm font-bold font-fredoka" style={{ color: currentTheme.textHex }}>{t('aiBuddy')}</p><p className="text-[10px] text-green-500">{t('online')}</p></div>
                 </div>
                 <ScrollArea className="flex-1 p-3" ref={chatScrollRef}>
                   <div className="space-y-2">
                     {chatMessages.length === 0 && <div className="text-center py-8 text-gray-400 text-sm"><p className="text-3xl mb-2">💬</p><p>{t('chatWelcome')}</p></div>}
                     {chatMessages.map((m, i) => (
                       <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white' : 'bg-white text-gray-900 border border-gray-300 shadow-md'}`}>
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'text-white' : 'text-gray-900 shadow-md'}`}
+                          style={m.role === 'user' ? {
+                            background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                          } : {
+                            background: 'white',
+                            border: `2px solid ${currentTheme.accentHex}20`,
+                          }}>
                           {m.content}
                         </div>
                       </div>
@@ -1787,9 +1873,14 @@ export default function HomePage() {
                     {chatLoading && <div className="flex justify-start"><div className="bg-white px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse border border-gray-300">{t('chatThinking')}</div></div>}
                   </div>
                 </ScrollArea>
-                <div className="flex gap-2 p-2 border-t border-gray-100">
-                  <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1" />
-                  <Button onClick={(e) => { e.stopPropagation(); sendChat(); }} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full bg-gradient-to-r from-blue-400 to-cyan-400"><Send className="h-4 w-4" /></Button>
+                <div className="flex gap-2 p-2" style={{ borderTop: `1px solid ${currentTheme.accentHex}18` }}>
+                  <Input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={t('chatPlaceholder')} className="rounded-full text-sm flex-1 font-fredoka"
+                    style={{ '--tw-ring-color': currentTheme.accentHex } as React.CSSProperties} />
+                  <Button onClick={(e) => { e.stopPropagation(); sendChat(); }} disabled={chatLoading || !chatInput.trim()} size="icon" className="rounded-full"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                      boxShadow: `0 4px 12px ${currentTheme.accentHex}40`,
+                    }}><Send className="h-4 w-4 text-white" /></Button>
                 </div>
               </div>
             </motion.div>
@@ -1809,8 +1900,14 @@ export default function HomePage() {
                   whileHover={{ y: -3 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                <Card><CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-r from-orange-400 to-green-400 rounded-full flex items-center justify-center text-2xl text-white font-bold">{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
+                <Card style={{
+                  border: cardTheme.border,
+                  boxShadow: cardTheme.boxShadow,
+                  background: cardTheme.background,
+                  borderRadius: cardTheme.borderRadius,
+                }}><CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl text-white font-bold"
+                    style={{ background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)` }}>{(user.displayName || user.username || 'G')[0].toUpperCase()}</div>
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-800">{user.displayName || user.username}</h3>
                     <p className="text-xs text-gray-500">{user.isPro ? `👑 ${t('proMember')}` : t('freeMember')}</p>
@@ -1824,13 +1921,23 @@ export default function HomePage() {
                   whileHover={{ y: -3 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                <Card><CardContent className="p-4">
-                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500" /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
+                <Card style={{
+                  border: cardTheme.border,
+                  boxShadow: cardTheme.boxShadow,
+                  background: cardTheme.background,
+                  borderRadius: cardTheme.borderRadius,
+                }}><CardContent className="p-4">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2 font-fredoka"><Trophy className="h-4 w-4" style={{ color: currentTheme.accentHex }} /> {t('achievements')} ({unlockedCount}/{ACHIEVEMENT_DEFS.length})</h4>
                   <Progress value={(unlockedCount / ACHIEVEMENT_DEFS.length) * 100} className="mb-3 h-2" />
                   <div className="grid grid-cols-3 gap-2">
                     {ACHIEVEMENT_DEFS.map(a => {
                       const unlocked = achievements.find(ach => ach.type === a.type);
-                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={t(a.descKey)}>
+                      return <div key={a.type} className={`p-2 rounded-xl text-center transition-all cursor-default ${unlocked ? '' : 'bg-gray-50 border border-gray-100 opacity-50'}`} title={t(a.descKey)}
+                        style={unlocked ? {
+                          background: `${currentTheme.accentHex}0d`,
+                          border: `2px solid ${currentTheme.accentHex}30`,
+                          boxShadow: `0 2px 8px ${currentTheme.accentHex}10`,
+                        } : {}}>
                         <div className="text-2xl">{unlocked ? a.emoji : '🔒'}</div>
                         <p className="text-[10px] font-medium mt-1">{t(a.titleKey)}</p>
                         <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">{t(a.descKey)}</p>
@@ -1845,9 +1952,14 @@ export default function HomePage() {
                   whileHover={{ y: -3 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                <Card><CardContent className="p-4">
+                <Card style={{
+                  border: cardTheme.border,
+                  boxShadow: cardTheme.boxShadow,
+                  background: cardTheme.background,
+                  borderRadius: cardTheme.borderRadius,
+                }}><CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" /> History ({history.length})</h4>
+                    <h4 className="font-bold text-gray-800 flex items-center gap-2"><BookOpen className="h-4 w-4" style={{ color: currentTheme.accentHex }} /> History ({history.length})</h4>
                     {history.length > 0 && (
                       <button onClick={() => { if (confirm(t('confirmClearAll') || 'Clear all history?')) resetHistory(); }} className="text-[10px] text-red-500 hover:underline flex items-center gap-0.5">
                         <Trash2 className="h-3 w-3" /> Clear All
@@ -1878,7 +1990,12 @@ export default function HomePage() {
                   whileHover={{ y: -3 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                <Card><CardContent className="p-4">
+                <Card style={{
+                  border: cardTheme.border,
+                  boxShadow: cardTheme.boxShadow,
+                  background: cardTheme.background,
+                  borderRadius: cardTheme.borderRadius,
+                }}><CardContent className="p-4">
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">⭐ Feedback</h4>
                   {feedbackSent ? (
                     <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm text-center">✅ Thank you for your feedback!</div>
@@ -1891,7 +2008,11 @@ export default function HomePage() {
                         </button>
                       ))}</div>
                       <Textarea placeholder="Tell us what you think..." value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} className="rounded-xl text-sm" rows={2} />
-                      <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full bg-gradient-to-r from-orange-400 to-green-400 text-white rounded-xl">Send Feedback</Button>
+                      <Button onClick={sendFeedback} disabled={feedbackRating === 0} className="w-full text-white rounded-full font-fredoka"
+                        style={{
+                          background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
+                          boxShadow: `0 4px 12px ${currentTheme.accentHex}40`,
+                        }}>Send Feedback</Button>
                     </div>
                   )}
                 </CardContent></Card>
@@ -1901,10 +2022,6 @@ export default function HomePage() {
           )}
         </main>
 
-        {/* Footer */}
-        <footer className="mt-auto py-2 px-4 text-center bg-white/40 backdrop-blur-sm border-t border-gray-100">
-          <p className="text-[10px] text-gray-400">🔍 What&apos;s This? — AI-Powered Object Learning for Kids</p>
-        </footer>
       </div>
 
       {/* Mobile Tab Bar - mobile only */}
@@ -1916,14 +2033,22 @@ export default function HomePage() {
 }
 
 // ==================== HELPER COMPONENTS ====================
-function Btn({ icon, onClick, color, disabled }: { icon: React.ReactNode; onClick: () => void; color: string; disabled?: boolean }) {
+function Btn({ icon, onClick, color, disabled, accentHex }: {
+  icon: React.ReactNode; onClick: () => void; color: string; disabled?: boolean; accentHex?: string;
+}) {
   const colors: Record<string, string> = {
     orange: 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-orange-300/50',
     purple: 'bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-purple-300/50',
     teal: 'bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-teal-300/50',
     white: 'bg-white/90 shadow-md text-gray-600 hover:text-gray-800',
+    theme: '',
   };
-  return <motion.div whileTap={{ scale: 0.9 }}><Button onClick={onClick} disabled={disabled} className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg ${colors[color]} disabled:opacity-50`}>{icon}</Button></motion.div>;
+  const themeStyle = color === 'theme' && accentHex ? {
+    background: `linear-gradient(135deg, ${accentHex}, ${accentHex}cc)`,
+    boxShadow: `0 4px 15px ${accentHex}40`,
+    color: 'white',
+  } as React.CSSProperties : undefined;
+  return <motion.div whileTap={{ scale: 0.9 }}><Button onClick={onClick} disabled={disabled} style={themeStyle} className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg ${colors[color]} disabled:opacity-50`}>{icon}</Button></motion.div>;
 }
 
 function BigBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {

@@ -91,8 +91,9 @@ export default function ResultCard({
 
               {/* Front face — result card with glass morphism */}
               <Card
-                className="bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl"
+                className="backdrop-blur-xl shadow-2xl"
                 style={{
+                  background: 'var(--kid-card-bg)',
                   boxShadow: `0 8px 32px ${activeColor}20, 0 0 0 1px ${activeColor}10`,
                   backdropFilter: 'blur(20px)',
                 }}
@@ -117,7 +118,7 @@ export default function ResultCard({
                       <h2
                         className="text-2xl sm:text-3xl font-extrabold font-fredoka"
                         style={{
-                          background: `linear-gradient(135deg, ${activeColor}, ${activeColor}aa)`,
+                          backgroundImage: `linear-gradient(135deg, ${activeColor}, ${activeColor}aa)`,
                           WebkitBackgroundClip: 'text',
                           WebkitTextFillColor: 'transparent',
                           backgroundClip: 'text',
@@ -125,7 +126,7 @@ export default function ResultCard({
                       >
                         {getNameInLang(result, language)}
                       </h2>
-                      <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                      <Badge variant="secondary" className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: `${activeColor}20`, color: activeColor }}>
                         {result.category}
                       </Badge>
                     </motion.div>
@@ -163,16 +164,16 @@ export default function ResultCard({
                     {/* Action Buttons */}
                     <motion.div variants={contentReveal} className="flex justify-center gap-3 flex-wrap">
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
+                        whileHover={{ scale: 1.05, boxShadow: `0 6px 20px ${activeColor}60` }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onListen}
                         className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
-                        style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                        style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
                       >
                         <Volume2 className="h-4 w-4 inline mr-1.5" />{t('listenBtn')}
                       </motion.button>
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
+                        whileHover={{ scale: 1.05, boxShadow: `0 6px 20px ${activeColor}60` }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onQuiz}
                         className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
@@ -181,11 +182,11 @@ export default function ResultCard({
                         🧠 {t('quizBtn')}
                       </motion.button>
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
+                        whileHover={{ scale: 1.05, boxShadow: `0 6px 20px ${activeColor}60` }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onPuzzle}
                         className="px-5 py-2.5 text-white rounded-2xl font-medium font-fredoka text-sm shadow-md transition-all"
-                        style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+                        style={{ background: `linear-gradient(135deg, ${activeColor}, ${activeColor}cc)` }}
                       >
                         🧩 {t('puzzleBtn')}
                       </motion.button>
