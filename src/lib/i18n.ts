@@ -189,6 +189,11 @@ const translations: Record<Lang, TranslationMap> = {
     tryAnother: 'Try Another',
     newImage: 'New Image',
 
+    // Delete Account
+    deleteAccount: 'Delete Account',
+    confirmDeleteAccount: 'Are you sure? All data will be permanently deleted.',
+    delete: 'Delete',
+
     // Guest
     guest: 'Guest',
 
@@ -381,6 +386,11 @@ const translations: Record<Lang, TranslationMap> = {
     tryAnother: 'Coba Lagi',
     newImage: 'Gambar Baru',
 
+    // Delete Account
+    deleteAccount: 'Hapus Akun',
+    confirmDeleteAccount: 'Yakin? Semua data akan dihapus permanen.',
+    delete: 'Hapus',
+
     // Guest
     guest: 'Tamu',
 
@@ -563,6 +573,11 @@ const translations: Record<Lang, TranslationMap> = {
     nextQuestion: '下一题',
     tryAnother: '再试一次',
     newImage: '新图片',
+
+    // Delete Account
+    deleteAccount: '删除账号',
+    confirmDeleteAccount: '确定吗？所有数据将被永久删除。',
+    delete: '删除',
 
     // Guest
     guest: '游客',
