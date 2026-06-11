@@ -237,6 +237,9 @@ export default function HomePage() {
     title: string;
   }>({ isOpen: false, emoji: '', title: '' });
 
+  // Delete account confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const triggerCelebration = useCallback((message: string) => {
     const parts = message.split(' ');
     const emoji = parts[0] || '🎉';
@@ -393,6 +396,20 @@ export default function HomePage() {
     setUser(null); setHistory([]); setAchievements([]);
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const res = await fetch('/api/auth/delete', { method: 'DELETE' });
+      if (res.ok) {
+        setUser(null); setHistory([]); setAchievements([]); setShowDeleteConfirm(false);
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to delete account');
+      }
+    } catch {
+      setError('Failed to delete account');
+    }
+  };
+
   // ==================== CAMERA ====================
   const getCameraStream = useCallback(async (preferBack: boolean) => {
     try {
@@ -491,7 +508,8 @@ export default function HomePage() {
         // Always try to unlock — server is idempotent. Only celebrate if this call actually created the achievement.
         // Check if achievement already exists in local state before requesting
         if (!achievements.some(ach => ach.type === 'first_scan')) {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).then(r => r.json()).then(data => {
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'first_scan', title: 'First Discovery!', emoji: '🔍' }) }).then(async r => {
+            const data = await r.json();
             // Server returns 201 for NEW achievements, 200 for already-existing (idempotent)
             if (r.status === 201) {
               setAchievements(prev => prev.some(a => a.type === 'first_scan') ? prev : [...prev, data.achievement]);
@@ -503,6 +521,7 @@ export default function HomePage() {
         // Guest: just save locally
         setHistory(prev => [{ ...result, id: Date.now().toString(), timestamp: new Date(), imageData: rotated }, ...prev]);
         unlockGuestAchievement('first_scan');
+	        triggerCelebration(`🎉 ${t('achFirstScan')}`);
       }
       speakBrowserTTS(getNameInLang(result, language) + '. ' + getDescInLang(result, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(result, language) }));
     } catch { setError(t('couldNotIdentify')); }
@@ -680,7 +699,8 @@ export default function HomePage() {
     if (correct) {
       // Unlock achievement, save score (same as current logic)
       if (user?.id !== 'guest') {
-        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }).then(r => r.json()).then(data => {
+        try { await fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'quiz_perfect', title: 'Perfect Score!', emoji: '💯' }) }).then(async r => {
+            const data = await r.json();
           if (r.status === 201) {
             setAchievements(prev => prev.some(a => a.type === 'quiz_perfect') ? prev : [...prev, data.achievement]);
             triggerCelebration(`🏆 ${t('achPerfectScore')}`);
@@ -733,7 +753,8 @@ export default function HomePage() {
     if (correct) {
       speakBrowserTTS(t('ttsListenCorrect', { word: listenWord }));
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).then(r => r.json()).then(data => {
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'listen_master', title: 'Good Listener', emoji: '👂' }) }).then(async r => {
+            const data = await r.json();
           if (r.status === 201) {
             setAchievements(prev => prev.some(a => a.type === 'listen_master') ? prev : [...prev, data.achievement]);
             triggerCelebration(`👂 ${t('achGoodListener')}`);
@@ -806,7 +827,8 @@ export default function HomePage() {
       setPuzzleResult(correct ? 'correct' : 'incorrect');
       if (correct) {
         if (user?.id !== 'guest') {
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).then(r => r.json()).then(data => {
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'puzzle_complete', title: 'Puzzle Master', emoji: '🧩' }) }).then(async r => {
+            const data = await r.json();
             if (r.status === 201) {
               setAchievements(prev => prev.some(a => a.type === 'puzzle_complete') ? prev : [...prev, data.achievement]);
               triggerCelebration(`🧩 ${t('achPuzzleMaster')}`);
@@ -831,7 +853,8 @@ export default function HomePage() {
     setChatInput(''); setChatLoading(true);
     if (chatMessages.length === 0) {
       if (user?.id !== 'guest') {
-        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).then(r => r.json()).then(data => {
+        fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat_first', title: 'Chatty Kid', emoji: '💬' }) }).then(async r => {
+            const data = await r.json();
           if (r.status === 201) {
             setAchievements(prev => prev.some(a => a.type === 'chat_first') ? prev : [...prev, data.achievement]);
             triggerCelebration(`💬 ${t('achChattyKid')}`);
@@ -860,7 +883,8 @@ export default function HomePage() {
         if (res.ok) {
           setFeedbackSent(true);
           // Unlock feedback achievement
-          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'feedback_given', title: 'Helper', emoji: '⭐' }) }).then(r => r.json()).then(data => {
+          fetch('/api/achievements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'feedback_given', title: 'Helper', emoji: '⭐' }) }).then(async r => {
+            const data = await r.json();
             if (r.status === 201) {
               setAchievements(prev => prev.some(a => a.type === 'feedback_given') ? prev : [...prev, data.achievement]);
               triggerCelebration(`⭐ ${t('achHelper')}`);
@@ -1354,6 +1378,37 @@ export default function HomePage() {
                   <p className="text-xs font-semibold text-yellow-700">{t('upgradeToPro')}</p>
                   <p className="text-[10px] text-yellow-600">{t('unlockFeatures')}</p>
                   <Button size="sm" onClick={upgradeToPro} disabled={upgrading} className="mt-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs">{upgrading ? t('upgrading') : t('getPro')}</Button>
+                </div>
+              )}
+              {/* Delete Account */}
+              {user?.id !== 'guest' && (
+                <div className="pt-4 border-t border-red-100">
+                  {showDeleteConfirm ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-red-50 rounded-xl p-3 text-center"
+                    >
+                      <p className="text-xs font-bold text-red-700 mb-2">⚠️ {t('confirmDeleteAccount')}</p>
+                      <div className="flex gap-2 justify-center">
+                        <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)} className="text-xs text-gray-600 border-gray-200 flex-1">
+                          {t('cancel')}
+                        </Button>
+                        <Button size="sm" onClick={handleDeleteAccount} className="text-xs bg-red-500 hover:bg-red-600 text-white flex-1">
+                          🗑️ {t('delete')}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 text-xs font-fredoka"
+                    >
+                      🗑️ {t('deleteAccount')}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
