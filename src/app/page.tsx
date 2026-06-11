@@ -1167,6 +1167,7 @@ export default function HomePage() {
                       boxShadow: `0 12px 40px ${currentTheme.accentHex}44`,
                       border: 'none',
                     }}
+                    onClick={() => setShowAuth('register')}
                   >
                     🎉 {t('createAccount')}
                   </Button>
