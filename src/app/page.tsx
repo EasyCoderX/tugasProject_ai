@@ -25,6 +25,8 @@ import Confetti from '@/components/Confetti';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
 import ResultCard from '@/components/ResultCard';
 import ThemeSwatchSwitcher from '@/components/ui/ThemeSwatchSwitcher';
+import { runCycle } from '@/lib/ai';
+import type { LearningState, PerceptionInput, PlanStep, QuizObject } from '@/lib/ai/types';
 
 // ==================== TYPES ====================
 interface UserInfo {
@@ -239,6 +241,17 @@ export default function HomePage() {
 
   // Delete account confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // AI Agent State
+  const [learningState, setLearningState] = useState<LearningState>({
+    discoveredObjects: [],
+    categoriesSeen: [],
+    quizCompleted: false,
+    puzzleCompleted: false,
+    listenScore: 0,
+    chatCount: 0,
+  });
+  const [nextSteps, setNextSteps] = useState<PlanStep[]>([]);
 
   const triggerCelebration = useCallback((message: string) => {
     const parts = message.split(' ');
@@ -501,6 +514,37 @@ export default function HomePage() {
       const result: IdentifyResult = await res.json();
       setCurrentResult(result);
       setCapturedImage(rotated); setImageRotation(0);
+
+      // AI Agent Cycle — after successful identification
+      try {
+        const agentInput: PerceptionInput = {
+          type: 'scan_complete',
+          objectName: getNameInLang(result, language),
+          objectCategory: result.category,
+          attributes: (result as any).attributes || [],
+        };
+
+        const agentHistoryObjects: QuizObject[] = (history || []).map((h: any) => ({
+          name: getNameInLang(h, language),
+          category: h.category || 'Other',
+          difficulty: 0,
+          emoji: h.emoji || '🔍',
+          imageData: h.imageData,
+        }));
+
+        const { newState, commands } = runCycle(
+          learningState,
+          agentInput,
+          agentHistoryObjects.slice(0, 20),
+          language
+        );
+
+        setLearningState(newState);
+        setNextSteps(commands.displayNextSteps);
+      } catch (e) {
+        console.error('Agent cycle error (non-fatal):', e);
+      }
+
       if (user && user.id !== 'guest') {
         // Save to DB history
         fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: result.name, emoji: result.emoji, description: result.description, funFact: result.funFact, category: result.category, imageData: rotated, nameOptions: result.nameOptions, descriptionOptions: result.descriptionOptions, funFactOptions: result.funFactOptions }) }).then(() => fetchHistory()).catch(() => {});
@@ -526,7 +570,7 @@ export default function HomePage() {
       speakBrowserTTS(getNameInLang(result, language) + '. ' + getDescInLang(result, language) + '. ' + t('ttsFunFact', { fact: getFactInLang(result, language) }));
     } catch { setError(t('couldNotIdentify')); }
     finally { setIsIdentifying(false); identifyingRef.current = false; }
-  }, [imageRotation, getRotatedImage, user, t]);
+  }, [imageRotation, getRotatedImage, user, t, history, learningState, language]);
 
   const captureAndIdentify = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -605,6 +649,33 @@ export default function HomePage() {
   const resetView = useCallback(() => {
     setCapturedImage(null); setCurrentResult(null); setError(null); setImageRotation(0);
   }, []);
+
+  const handleNavigateStep = useCallback((actionId: string) => {
+    switch (actionId) {
+      case 'scan_first_object':
+      case 'scan_animal':
+      case 'scan_food':
+      case 'scan_nature':
+      case 'discover_more':
+        setActiveTab('home');
+        break;
+      case 'take_quiz':
+        setActiveTab('games');
+        setTimeout(() => startQuiz(), 100);
+        break;
+      case 'solve_puzzle':
+        setActiveTab('games');
+        setTimeout(() => startPuzzle(), 100);
+        break;
+      case 'listen_game':
+        setActiveTab('learn');
+        setTimeout(() => startListen(), 100);
+        break;
+      case 'chat_with_ai':
+        setActiveTab('chat');
+        break;
+    }
+  }, [startQuiz, startPuzzle, startListen]);
 
   const resetHistory = async () => {
     if (user?.id !== 'guest') await fetch('/api/history', { method: 'DELETE' });
@@ -907,6 +978,14 @@ export default function HomePage() {
         const data = await res.json();
         const items = Array.isArray(data) ? data : (Array.isArray(data.history) ? data.history : []);
         setHistory(items.map((h: any) => ({ ...h, timestamp: h.createdAt ? new Date(h.createdAt) : new Date(), imageData: h.imageData || '' })));
+        // Initialize agent learning state from history
+        const objNames = items.map((h: any) => h.name).filter(Boolean);
+        const objCategories = [...new Set(items.map((h: any) => h.category).filter(Boolean))];
+        setLearningState(prev => ({
+          ...prev,
+          discoveredObjects: objNames,
+          categoriesSeen: objCategories,
+        }));
       }
     } catch {}
   };
@@ -1594,6 +1673,53 @@ export default function HomePage() {
                 sectionAccent={sectionAccent}
                 themeData={currentTheme}
               />
+
+              {/* Next Steps from Agent Planner */}
+              {nextSteps.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 25 }}
+                >
+                  <Card style={{
+                    border: cardTheme.border,
+                    boxShadow: cardTheme.boxShadow,
+                    background: cardTheme.background,
+                    borderRadius: cardTheme.borderRadius,
+                  }}>
+                    <CardContent className="p-4">
+                      <h4 className="font-bold flex items-center gap-2 mb-3 font-fredoka" style={{ color: currentTheme.textHex }}>
+                        🎯 {t('achievements') || 'Next Learning Steps'}
+                      </h4>
+                      <div className="space-y-2">
+                        {nextSteps.map((step, i) => (
+                          <motion.button
+                            key={step.actionId || i}
+                            onClick={() => handleNavigateStep(step.actionId)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:shadow-md cursor-pointer"
+                            style={{
+                              background: `${currentTheme.accentHex}0d`,
+                              border: `1px solid ${currentTheme.accentHex}20`,
+                            }}
+                            whileHover={{ scale: 1.02, x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg shrink-0"
+                              style={{ background: `${currentTheme.accentHex}20` }}>
+                              {step.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{step.actionName}</p>
+                              <p className="text-xs text-gray-500 truncate">{step.description}</p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                          </motion.button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
             </motion.div>
           )}
 
@@ -2073,6 +2199,53 @@ export default function HomePage() {
                   )}
                 </CardContent></Card>
                 </motion.div>
+
+                {/* Next Steps from Agent Planner */}
+                {nextSteps.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 25 }}
+                  >
+                    <Card style={{
+                      border: cardTheme.border,
+                      boxShadow: cardTheme.boxShadow,
+                      background: cardTheme.background,
+                      borderRadius: cardTheme.borderRadius,
+                    }}>
+                      <CardContent className="p-4">
+                        <h4 className="font-bold flex items-center gap-2 mb-3 font-fredoka" style={{ color: currentTheme.textHex }}>
+                          🎯 Next Learning Steps
+                        </h4>
+                        <div className="space-y-2">
+                          {nextSteps.map((step, i) => (
+                            <motion.button
+                              key={step.actionId || i}
+                              onClick={() => handleNavigateStep(step.actionId)}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:shadow-md cursor-pointer"
+                              style={{
+                                background: `${currentTheme.accentHex}0d`,
+                                border: `1px solid ${currentTheme.accentHex}20`,
+                              }}
+                              whileHover={{ scale: 1.02, x: 4 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg shrink-0"
+                                style={{ background: `${currentTheme.accentHex}20` }}>
+                                {step.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{step.actionName}</p>
+                                <p className="text-xs text-gray-500 truncate">{step.description}</p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                            </motion.button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}
