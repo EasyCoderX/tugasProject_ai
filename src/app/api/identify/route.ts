@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withRetry, isOverloadError } from '@/lib/retry';
 import { withQueue } from '@/lib/zai-queue';
+import { inferFromObject, createKnowledgeBase } from '@/lib/ai/knowledgeBase';
+import type { InferredFact } from '@/lib/helpers';
 
 interface IdentifyResponse {
   name: string;
@@ -68,7 +70,8 @@ Look at the image and identify the main object. Respond with ONLY a valid JSON o
   "funFactEn": "fun fact in English",
   "funFactId": "fun fact in Indonesian (Bahasa Indonesia)",
   "funFactZh": "fun fact in Simplified Chinese (简体中文)",
-  "category": "one of: Animals, Food, Toys, Vehicles, Plants, Electronics, Furniture, Clothing, Tools, Nature, Sports, Household, School, Music, Art, People, Other"
+  "category": "one of: Animals, Food, Toys, Vehicles, Plants, Electronics, Furniture, Clothing, Tools, Nature, Sports, Household, School, Music, Art, People, Other",
+  "attributes": ["list of 2-4 simple attributes describing this object from: furry, feathered, scaly, eats_plants, eats_meat, has_tail, flies, swims, walks, lays_eggs, barks, meows, chirps, has_wings, has_wheels, has_legs, aquatic, terrestrial, sweet, healthy, natural, round, tall, colorful, can_swim, can_jump"]
 }
 
 Rules:
@@ -143,6 +146,9 @@ Rules:
       }
     }
 
+    // Capture attributes from AI vision response for KB inference
+    const aiAttributes: string[] = Array.isArray((result as any).attributes) ? (result as any).attributes as string[] : [];
+
     // Validate required fields
     result = {
       name: result.name || 'Unknown Object',
@@ -188,11 +194,27 @@ Rules:
       funFactOptions[language] = result.funFact;
     }
 
+    // ===== AI Classical Module: Knowledge Base Inference =====
+    let inferredFacts: InferredFact[] = [];
+    try {
+      const kb = createKnowledgeBase();
+      inferredFacts = inferFromObject(
+        result.name,
+        result.category,
+        aiAttributes,
+        language as 'en' | 'id' | 'zh',
+        kb
+      );
+    } catch (e) {
+      console.error('KB inference error (non-fatal):', e);
+    }
+
     return NextResponse.json({
       ...result,
       nameOptions,
       descriptionOptions,
       funFactOptions,
+      inferredFacts,
     });
   } catch (error) {
     console.error('Identify API Error:', error);
