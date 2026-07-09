@@ -2,10 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withRetry, isOverloadError } from '@/lib/retry';
 import { withQueue } from '@/lib/zai-queue';
+import { solveQuizCSP } from '@/lib/ai/csp';
+import type { QuizObject } from '@/lib/ai/types';
 
 export async function POST(req: NextRequest) {
   try {
     const { name, category, description, language, recentNames } = await req.json();
+
+    // ===== AI Classical Module: CSP Quiz Structure =====
+    let cspStructure: any = null;
+    try {
+      const historyObjects: QuizObject[] = (recentNames || []).map((n: string) => ({
+        name: n,
+        category: category || 'Other',
+        difficulty: 0,
+        emoji: '🔍',
+      }));
+      if (name) {
+        historyObjects.push({ name, category: category || 'Other', difficulty: 0, emoji: '🔍' });
+      }
+
+      const cspResult = solveQuizCSP(historyObjects, 5);
+      if (cspResult.solutionFound && cspResult.slots.length > 0) {
+        cspStructure = {
+          slots: cspResult.slots.map(s => ({
+            variableId: s.variableId,
+            selectedObject: s.selectedObject,
+            distractors: s.distractors,
+          })),
+        };
+      }
+    } catch (e) {
+      console.error('CSP error (non-fatal, falling back to AI-only):', e);
+    }
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Object name is required' }, { status: 400 });
@@ -74,7 +103,10 @@ Respond with ONLY a valid JSON array of 8 strings, nothing else:
       return NextResponse.json({ error: 'Failed to parse generated options' }, { status: 500 });
     }
 
-    return NextResponse.json({ wrongAnswers: wrongAnswers.slice(0, 8) });
+    return NextResponse.json({
+      wrongAnswers: wrongAnswers.slice(0, 8),
+      cspStructure,
+    });
   } catch (error) {
     console.error('Quiz Generate API Error:', error);
     let errorMessage = 'Failed to generate quiz options';
