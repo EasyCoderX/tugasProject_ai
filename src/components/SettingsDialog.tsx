@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Crown } from 'lucide-react';
@@ -45,6 +45,7 @@ export default function SettingsDialog({
       <DialogContent className="max-w-sm rounded-3xl border-4 backdrop-blur-sm" style={{ borderColor: `rgb(var(--kid-accent-rgb) / 0.3)` }}>
         <DialogHeader>
           <DialogTitle className="font-fredoka text-xl">⚙️ {t('settings')}</DialogTitle>
+          <DialogDescription>{t('settingsDescription', { defaultValue: 'Customize your theme, language, and account settings' })}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

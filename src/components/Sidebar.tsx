@@ -143,7 +143,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
                 whileTap={{ scale: 0.96 }}
                 className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 relative overflow-hidden whitespace-nowrap ${collapsed ? 'justify-center' : ''}`}
                 style={{
-                  background: isActive ? activeBg : 'transparent',
+                  background: isActive ? activeBg : 'rgba(255,255,255,0)',
                   boxShadow: isActive
                     ? `0 4px 20px ${accent}40, inset 0 0 0 1px ${accent}30`
                     : 'none',
@@ -235,7 +235,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
                   whileHover={{ scale: 1.04, background: hoverBg }}
                   whileTap={{ scale: 0.96 }}
                   className="flex items-center justify-center w-full py-2 rounded-2xl transition-all"
-                  style={{ color: iconMuted, background: 'transparent', padding: '0.75rem' }}
+                  style={{ color: iconMuted, background: 'rgba(255,255,255,0)', padding: '0.75rem' }}
                 >
                   <Palette className="h-5 w-5" style={{ color: iconMuted }} />
                 </motion.button>
@@ -253,7 +253,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
               whileHover={{ scale: 1.04, background: hoverBg }}
               whileTap={{ scale: 0.96 }}
               className="flex items-center gap-3 px-3 py-3 rounded-2xl w-full transition-all"
-              style={{ color: iconMuted, background: 'transparent' }}
+              style={{ color: iconMuted, background: 'rgba(255,255,255,0)' }}
             >
               <Palette className="h-5 w-5 flex-shrink-0" style={{ color: iconMuted }} />
               <motion.span
@@ -272,7 +272,7 @@ export default function Sidebar({ activeTab, onTabChange, themeData, user }: Sid
                 <motion.div
                   whileHover={{ scale: 1.04, background: hoverBg }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-2xl cursor-pointer transition-all ${collapsed ? 'justify-center' : ''}`}
-                  style={{ background: 'transparent', padding: collapsed ? '0.5rem' : undefined }}
+                  style={{ background: 'rgba(255,255,255,0)', padding: collapsed ? '0.5rem' : undefined }}
                 >
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"

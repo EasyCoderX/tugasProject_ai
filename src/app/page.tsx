@@ -19,7 +19,7 @@ import Sidebar from '@/components/Sidebar';
 import MobileTabBar from '@/components/MobileTabBar';
 import Header from '@/components/Header';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useTranslation, type Lang } from '@/lib/i18n';
 import Confetti from '@/components/Confetti';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
@@ -1040,9 +1040,15 @@ export default function HomePage() {
   // ==================== UPGRADE TO PRO ====================
   const [upgrading, setUpgrading] = useState(false);
   const upgradeToPro = async () => {
+    // Jangan panggil jika user guest atau belum login — 401 tidak berguna
+    if (!user || user.id === 'guest') return;
     setUpgrading(true);
     try {
       const res = await fetch('/api/auth/upgrade', { method: 'POST' });
+      if (res.status === 401) {
+        // 401 = session expired / not authenticated, stop retrying
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         const updatedUser = data.user || data;
@@ -1149,7 +1155,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="text-4xl sm:text-5xl font-extrabold mb-2 text-center font-fredoka leading-tight"
             style={{
-              background: `linear-gradient(135deg, ${currentTheme.accentHex}, #facc15 50%, ${currentTheme.accentHex})`,
+              backgroundImage: `linear-gradient(135deg, ${currentTheme.accentHex}, #facc15 50%, ${currentTheme.accentHex})`,
               backgroundSize: '200% 200%',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -1420,7 +1426,10 @@ export default function HomePage() {
         {/* Settings Dialog */}
         <Dialog open={showSettings} onOpenChange={setShowSettings}>
           <DialogContent className="max-w-sm" style={{ background: currentTheme.textHex === '#f8fafc' ? 'rgba(30,30,50,0.95)' : 'white', borderColor: currentTheme.textHex === '#f8fafc' ? 'rgba(99,102,241,0.3)' : undefined }}>
-            <DialogHeader><DialogTitle style={{ color: currentTheme.textHex === '#f8fafc' ? '#e2e8f0' : undefined }}>⚙️ {t('settings')}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle style={{ color: currentTheme.textHex === '#f8fafc' ? '#e2e8f0' : undefined }}>⚙️ {t('settings')}</DialogTitle>
+              <DialogDescription>{t('settingsDescription', { defaultValue: 'Customize your theme, language, and account settings' })}</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
               {user?.isPro && (
                 <div>

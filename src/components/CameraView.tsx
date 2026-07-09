@@ -106,7 +106,7 @@ export default function CameraView({
             transition={{ duration: 0, opacity: { duration: 0.3 } }}
             className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none"
             style={{
-              background: `linear-gradient(90deg, transparent, ${sectionAccent?.hex ?? '#fb923c'}, transparent)`,
+              background: `linear-gradient(90deg, rgba(255,255,255,0), ${sectionAccent?.hex ?? '#fb923c'}, rgba(255,255,255,0))`,
               animation: 'scan-sweep 2s linear infinite',
               animationDelay: '0.5s',
             }}
