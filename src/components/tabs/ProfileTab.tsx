@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Trophy, BookOpen, Trash2, X, Volume2 } from 'lucide-react';
+import { Trophy, BookOpen, Trash2, X, Volume2, ChevronRight } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/lib/i18n';
 import { ACHIEVEMENT_DEFS } from '@/lib/helpers';
 import type { Achievement, HistoryItem, IdentifyResult, UserInfo } from '@/lib/helpers';
+import type { PlanStep } from '@/lib/ai/types';
 
 interface ProfileTabProps {
   user: UserInfo | null;
@@ -34,6 +35,10 @@ interface ProfileTabProps {
   getDescInLang: (item: IdentifyResult, lang: string) => string;
   language: string;
   unlockedCount: number;
+
+  // Planner
+  nextSteps?: PlanStep[];
+  onNavigateStep?: (actionId: string) => void;
 }
 
 export default function ProfileTab({
@@ -56,6 +61,8 @@ export default function ProfileTab({
   getNameInLang,
   language,
   unlockedCount,
+  nextSteps,
+  onNavigateStep,
 }: ProfileTabProps) {
   const { t: tLocal } = useTranslation(language);
 
@@ -160,6 +167,39 @@ export default function ProfileTab({
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Next Step Recommendations from Planner */}
+        {nextSteps && nextSteps.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="card-kid" style={{ background: 'var(--kid-card-bg)' }}>
+              <CardContent className="p-5">
+                <h4 className="font-bold text-sm flex items-center gap-2 mb-3 font-fredoka" style={{ color: 'var(--kid-accent-hex)' }}>
+                  🎯 {t('nextSteps') || 'Langkah Belajar Berikut'}
+                </h4>
+                <div className="space-y-1">
+                  {nextSteps.map((step) => (
+                    <button
+                      key={step.stepNumber}
+                      onClick={() => onNavigateStep?.(step.actionId)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                    >
+                      <span className="text-xl">{step.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate font-fredoka">{step.actionName}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{step.description}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* History */}
         <motion.div

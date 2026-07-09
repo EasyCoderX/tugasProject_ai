@@ -4,7 +4,10 @@ import { TabsContent } from '@/components/ui/tabs';
 import CameraView, { CameraActions } from '@/components/CameraView';
 import ResultCard from '@/components/ResultCard';
 import { useTranslation } from '@/lib/i18n';
+import { ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { IdentifyResult } from '@/lib/helpers';
+import type { PlanStep } from '@/lib/ai/types';
 
 interface HomeTabProps {
   // Refs
@@ -46,6 +49,10 @@ interface HomeTabProps {
   getDescInLang: (item: IdentifyResult, lang: string) => string;
   getFactInLang: (item: IdentifyResult, lang: string) => string;
   sectionAccent?: { hex: string; rgb: string; gradient: string };
+
+  // Planner
+  nextSteps?: PlanStep[];
+  onNavigateStep?: (actionId: string) => void;
 }
 
 export default function HomeTab({
@@ -75,6 +82,8 @@ export default function HomeTab({
   getDescInLang,
   getFactInLang,
   sectionAccent,
+  nextSteps,
+  onNavigateStep,
 }: HomeTabProps) {
   const { t } = useTranslation(language);
 
@@ -163,6 +172,38 @@ export default function HomeTab({
           getFactInLang={getFactInLang}
           sectionAccent={sectionAccent}
         />
+      )}
+
+      {/* Next Step Recommendations from Planner */}
+      {nextSteps && nextSteps.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="max-w-lg mx-auto px-1 w-full"
+        >
+          <div className="card-kid p-4 rounded-2xl" style={{ background: 'var(--kid-card-bg)', border: `1px solid ${sectionAccent?.hex || 'var(--kid-accent-hex)'}30` }}>
+            <h4 className="font-bold text-sm flex items-center gap-2 mb-3 font-fredoka" style={{ color: sectionAccent?.hex || 'var(--kid-accent-hex)' }}>
+              🎯 {t('nextSteps') || 'Langkah Belajar Berikut'}
+            </h4>
+            <div className="space-y-1">
+              {nextSteps.map((step) => (
+                <button
+                  key={step.stepNumber}
+                  onClick={() => onNavigateStep?.(step.actionId)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                >
+                  <span className="text-xl">{step.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate font-fredoka">{step.actionName}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{step.description}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       )}
     </TabsContent>
   );
