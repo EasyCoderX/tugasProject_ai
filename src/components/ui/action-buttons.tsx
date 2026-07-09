@@ -15,7 +15,7 @@ const btnVariants = cva(
         orange: 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-orange-300/50',
         purple: 'bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-purple-300/50',
         teal: 'bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-teal-300/50',
-        white: 'bg-white/90 shadow-md text-gray-600 hover:text-gray-800',
+        white: 'shadow-md text-gray-600 hover:text-gray-800',
       },
       size: {
         sm: 'h-12 w-12 sm:h-14 sm:w-14', // 48px minimum for touch targets
@@ -48,8 +48,10 @@ export function Btn({ icon, onClick, color, size, disabled, className, sectionAc
         style={{
           minWidth: '48px',
           minHeight: '48px',
+          background: sectionAccent
+            ? `linear-gradient(135deg, ${sectionAccent.hex}dd 0%, ${sectionAccent.hex}99 100%)`
+            : 'var(--kid-card-bg)',
           ...(sectionAccent && {
-            background: `linear-gradient(135deg, ${sectionAccent.hex}dd 0%, ${sectionAccent.hex}99 100%)`,
             boxShadow: `0 4px 20px ${sectionAccent.hex}60`,
           }),
         }}

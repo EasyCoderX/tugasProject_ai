@@ -82,7 +82,7 @@ Dengan pendekatan ini, anak bisa belajar dari **objek apa saja** kapan saja dan 
 | No | Fitur | Deskripsi |
 |---|---|---|
 | 16 | **Achievement System (9 Badge)** | Sistem pencapaian dengan 9 badge: First Discovery 🔍, Explorer 🧭 (5 scan), Scientist 🔬 (10 scan), Professor 🎓 (20 scan), Perfect Score 💯, Puzzle Master 🧩, Good Listener 👂, Chatty Kid 💬, dan Helper ⭐. Milestone scan (5, 10, 20 objek) dicek otomatis saat unlock achievement. |
-| 17 | **Multi-Bahasa (3 Bahasa)** | Seluruh UI dan respons AI tersedia dalam 3 bahasa: English 🇬🇧, Bahasa Indonesia 🇮🇩, dan 简体中文 🇨🇳. Terdapat 140+ string yang diterjemahkan secara manual. History items menyimpan `nameOptions`, `descriptionOptions`, dan `funFactOptions` dalam bentuk JSON untuk memungkinkan switch bahasa tanpa re-identifikasi. |
+| 17 | **Multi-Bahasa (3 Bahasa)** | Seluruh UI dan respons AI tersedia dalam 3 bahasa: English 🇬🇧, Bahasa Indonesia 🇮🇩, dan 简体中文 🇨🇳. Terdapat 170+ string yang diterjemahkan secara manual (termasuk nama langkah planner dan pesan *toast* scan). History items menyimpan `nameOptions`, `descriptionOptions`, dan `funFactOptions` dalam bentuk JSON untuk memungkinkan switch bahasa tanpa re-identifikasi. |
 | 18 | **6 Tema Warna** | Tersedia 6 tema gradient: Luminous Meadow 🌈, Coral Dreams 🌊, Whispering Woods 🌲, Golden Hour 🌅, Twilight Reverie 🌙, dan Sugar Paradise 🍬. Hanya 1 tema default gratis, 5 tema lainnya bersifat Pro. Pilihan tema tersimpan per pengguna di database. |
 | 19 | **User Feedback** | User dapat memberikan rating bintang 1–5 beserta komentar opsional via `/api/feedback`. Mengirim feedback otomatis membuka achievement "Helper". |
 | 20 | **Responsive Mobile-First** | Desain dibangun dengan pendekatan mobile-first menggunakan Tailwind CSS 4. Layout menyesuaikan dari HP ke desktop dengan animasi Framer Motion. |
@@ -696,7 +696,7 @@ Agen memperbarui *state*: `discoveredObjects = {kucing}`, `categoriesSeen = {Ani
 3. discover_more     → scan 3+ objek lagi untuk mencapai threshold quiz
 ```
 
-Rekomendasi ditampilkan di HomeTab sebagai kartu "Langkah Belajar Berikut" yang dapat diklik untuk navigasi.
+Rekomendasi ditampilkan di HomeTab dan ProfileTab sebagai kartu "Langkah Belajar Berikut" yang dapat diklik untuk navigasi. Nama dan deskripsi langkah mengikuti bahasa yang dipilih user melalui i18n.
 
 #### Langkah 4: *Quiz* — CSP
 

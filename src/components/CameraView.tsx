@@ -86,7 +86,8 @@ export default function CameraView({
 
   return (
     <div
-      className="relative rounded-3xl overflow-hidden bg-white/90 backdrop-blur-xl border border-white/50 aspect-[4/3] max-h-[45vh]"
+      className="relative rounded-3xl overflow-hidden backdrop-blur-xl border aspect-[4/3] max-h-[45vh]"
+      style={{ background: 'var(--kid-card-bg)', borderColor: 'rgba(255,255,255,0.5)' }}
       style={{
         // ── Breathing glow while camera is active ──
         boxShadow: cameraActive

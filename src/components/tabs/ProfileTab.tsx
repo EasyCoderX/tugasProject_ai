@@ -69,6 +69,19 @@ export default function ProfileTab({
   // Get user initials for avatar
   const initials = (user?.displayName || user?.username || 'G').charAt(0).toUpperCase();
 
+  // Map plan action IDs to i18n keys for localized step names/descriptions
+  const planStepI18n: Record<string, { nameKey: string; descKey: string }> = {
+    scan_first_object: { nameKey: 'stepScanFirstObject', descKey: 'stepScanFirstObjectDesc' },
+    scan_animal:       { nameKey: 'stepScanAnimal',       descKey: 'stepScanAnimalDesc' },
+    scan_food:         { nameKey: 'stepScanFood',         descKey: 'stepScanFoodDesc' },
+    scan_nature:       { nameKey: 'stepScanNature',       descKey: 'stepScanNatureDesc' },
+    discover_more:     { nameKey: 'stepDiscoverMore',     descKey: 'stepDiscoverMoreDesc' },
+    take_quiz:         { nameKey: 'stepTakeQuiz',         descKey: 'stepTakeQuizDesc' },
+    solve_puzzle:      { nameKey: 'stepSolvePuzzle',      descKey: 'stepSolvePuzzleDesc' },
+    listen_game:       { nameKey: 'stepListenGame',       descKey: 'stepListenGameDesc' },
+    chat_with_ai:      { nameKey: 'stepChatWithAI',       descKey: 'stepChatWithAIDesc' },
+  };
+
   return (
     <TabsContent value="profile" className="flex-1 min-h-0 overflow-y-auto pb-2">
       <div className="space-y-4">
@@ -181,7 +194,11 @@ export default function ProfileTab({
                   🎯 {t('nextSteps') || 'Langkah Belajar Berikut'}
                 </h4>
                 <div className="space-y-1">
-                  {nextSteps.map((step) => (
+                  {nextSteps.map((step) => {
+                    const i18nEntry = planStepI18n[step.actionId];
+                    const stepName = i18nEntry ? tLocal(i18nEntry.nameKey) : step.actionName;
+                    const stepDesc = i18nEntry ? tLocal(i18nEntry.descKey) : step.description;
+                    return (
                     <button
                       key={step.stepNumber}
                       onClick={() => onNavigateStep?.(step.actionId)}
@@ -189,12 +206,13 @@ export default function ProfileTab({
                     >
                       <span className="text-xl">{step.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate font-fredoka">{step.actionName}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{step.description}</p>
+                        <p className="text-sm font-medium text-gray-800 truncate font-fredoka">{stepName}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{stepDesc}</p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

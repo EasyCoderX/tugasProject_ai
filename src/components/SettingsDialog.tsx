@@ -75,10 +75,10 @@ export default function SettingsDialog({
                       }
                     }}
                     className={`p-3 rounded-2xl text-xs font-medium transition-all relative font-fredoka
-                      ${isActive ? 'ring-2 shadow-lg' : 'bg-white/80 hover:bg-white/90 shadow-md hover:shadow-lg'}`}
+                      ${isActive ? 'ring-2 shadow-lg' : 'shadow-md hover:shadow-lg'}`}
                     style={{
                       ringColor: isActive ? tm.accentHex : undefined,
-                      background: isActive ? `linear-gradient(135deg, ${tm.accentHex}20, ${tm.accentHex}10)` : undefined,
+                      background: isActive ? `linear-gradient(135deg, ${tm.accentHex}20, ${tm.accentHex}10)` : 'var(--kid-card-bg)',
                       minHeight: '60px'
                     }}
                   >
@@ -115,10 +115,10 @@ export default function SettingsDialog({
                     }
                   }}
                   className={`flex-1 p-3 rounded-2xl text-xs font-medium transition-all font-fredoka
-                    ${language === l.id ? 'ring-2 shadow-lg' : 'bg-white/80 hover:bg-white/90 shadow-md'}`}
+                    ${language === l.id ? 'ring-2 shadow-lg' : 'shadow-md'}`}
                   style={{
                     ringColor: language === l.id ? 'var(--kid-accent-hex)' : undefined,
-                    background: language === l.id ? `linear-gradient(135deg, rgb(var(--kid-accent-rgb) / 0.2), rgb(var(--kid-accent-rgb) / 0.1))` : undefined,
+                    background: language === l.id ? `linear-gradient(135deg, rgb(var(--kid-accent-rgb) / 0.2), rgb(var(--kid-accent-rgb) / 0.1))` : 'var(--kid-card-bg)',
                     minHeight: '60px'
                   }}
                 >

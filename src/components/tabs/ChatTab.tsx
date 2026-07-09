@@ -42,7 +42,7 @@ export default function ChatTab({
 
   return (
     <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col pb-2">
-      <div className="flex-1 min-h-0 flex flex-col bg-white/70 rounded-3xl shadow-lg overflow-hidden backdrop-blur-sm border-2" style={{ borderColor: 'rgb(var(--kid-accent-rgb) / 0.2)' }}>
+      <div className="flex-1 min-h-0 flex flex-col rounded-3xl shadow-lg overflow-hidden backdrop-blur-sm border-2" style={{ background: 'var(--kid-card-bg)', borderColor: 'rgb(var(--kid-accent-rgb) / 0.2)' }}>
         {/* Chat Header */}
         <CardHeader className="flex-row items-center gap-3 p-4 border-b-2" style={{ borderColor: 'rgb(var(--kid-accent-rgb) / 0.2)' }}>
           <motion.div
@@ -90,9 +90,10 @@ export default function ChatTab({
                   className={`max-w-[85%] px-4 py-2.5 rounded-3xl text-sm font-fredoka shadow-md
                     ${m.role === 'user'
                       ? 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white'
-                      : 'bg-white text-gray-800 border-2'
+                      : 'text-gray-800 border-2'
                     }`}
                   style={{
+                    background: m.role === 'user' ? undefined : 'var(--kid-card-bg)',
                     borderColor: m.role === 'user' ? 'transparent' : 'rgb(var(--kid-accent-rgb) / 0.2)',
                     boxShadow: m.role === 'user' ? '0 4px 15px var(--kid-shadow-color)' : undefined
                   }}
@@ -104,7 +105,7 @@ export default function ChatTab({
 
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="bg-white px-4 py-3 rounded-3xl text-sm text-gray-400 animate-pulse font-fredoka shadow-md border-2" style={{ borderColor: 'rgb(var(--kid-accent-rgb) / 0.2)' }}>
+                <div className="px-4 py-3 rounded-3xl text-sm text-gray-400 animate-pulse font-fredoka shadow-md border-2" style={{ background: 'var(--kid-card-bg)', borderColor: 'rgb(var(--kid-accent-rgb) / 0.2)' }}>
                   <div className="flex items-center gap-1">
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}

@@ -199,6 +199,34 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Celebration overlay
     continue: 'Continue',
+
+    // Plan step names & descriptions
+    stepScanFirstObject: 'Scan First Object',
+    stepScanFirstObjectDesc: 'Scan your first object to start learning!',
+    stepScanAnimal: 'Scan Animal',
+    stepScanAnimalDesc: 'Scan an animal to discover the Animals category',
+    stepScanFood: 'Scan Food',
+    stepScanFoodDesc: 'Scan food to discover the Food category',
+    stepScanNature: 'Scan Nature',
+    stepScanNatureDesc: 'Scan nature to discover the Nature category',
+    stepDiscoverMore: 'Discover More',
+    stepDiscoverMoreDesc: 'Discover more objects to expand your collection',
+    stepTakeQuiz: 'Take Quiz',
+    stepTakeQuizDesc: 'Take a quiz to test your knowledge!',
+    stepSolvePuzzle: 'Solve Puzzle',
+    stepSolvePuzzleDesc: 'Solve a puzzle to sharpen your skills!',
+    stepListenGame: 'Listen Game',
+    stepListenGameDesc: 'Play the listen game to improve your listening skills!',
+    stepChatWithAI: 'Chat with AI',
+    stepChatWithAIDesc: 'Chat with AI to learn more about objects!',
+    nextSteps: '🎯 Next Learning Steps',
+
+    // Scan toast messages
+    toastScanFirstObject: 'Point your camera at something to start! 📷',
+    toastScanAnimal: 'Point your camera at an animal! 🐾',
+    toastScanFood: 'Point your camera at food! 🍎',
+    toastScanNature: 'Point your camera at nature! 🌿',
+    toastDiscoverMore: 'Go discover more objects! 🔍',
   },
 
   id: {
@@ -396,6 +424,34 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Celebration overlay
     continue: 'Lanjutkan',
+
+    // Plan step names & descriptions
+    stepScanFirstObject: 'Pindai Objek Pertama',
+    stepScanFirstObjectDesc: 'Pindai objek pertamamu untuk mulai belajar!',
+    stepScanAnimal: 'Pindai Hewan',
+    stepScanAnimalDesc: 'Pindai hewan untuk menemukan kategori Hewan',
+    stepScanFood: 'Pindai Makanan',
+    stepScanFoodDesc: 'Pindai makanan untuk menemukan kategori Makanan',
+    stepScanNature: 'Pindai Alam',
+    stepScanNatureDesc: 'Pindai alam untuk menemukan kategori Alam',
+    stepDiscoverMore: 'Temukan Lagi',
+    stepDiscoverMoreDesc: 'Temukan lebih banyak objek untuk memperluas koleksimu',
+    stepTakeQuiz: 'Ikuti Kuis',
+    stepTakeQuizDesc: 'Ikuti kuis untuk menguji pengetahuanmu!',
+    stepSolvePuzzle: 'Selesaikan Puzzle',
+    stepSolvePuzzleDesc: 'Selesaikan puzzle untuk mengasah keterampilanmu!',
+    stepListenGame: 'Game Mendengar',
+    stepListenGameDesc: 'Mainkan game mendengar untuk meningkatkan kemampuan mendengarmu!',
+    stepChatWithAI: 'Obrolan dengan AI',
+    stepChatWithAIDesc: 'Obrolan dengan AI untuk belajar lebih banyak tentang objek!',
+    nextSteps: '🎯 Langkah Belajar Berikut',
+
+    // Scan toast messages
+    toastScanFirstObject: 'Arahkan kameramu ke sesuatu untuk memulai! 📷',
+    toastScanAnimal: 'Arahkan kameramu ke hewan! 🐾',
+    toastScanFood: 'Arahkan kameramu ke makanan! 🍎',
+    toastScanNature: 'Arahkan kameramu ke alam! 🌿',
+    toastDiscoverMore: 'Temukan lebih banyak objek! 🔍',
   },
 
   zh: {
@@ -584,6 +640,34 @@ const translations: Record<Lang, TranslationMap> = {
 
     // Celebration overlay
     continue: '继续',
+
+    // Plan step names & descriptions
+    stepScanFirstObject: '扫描第一个物体',
+    stepScanFirstObjectDesc: '扫描你的第一个物体开始学习！',
+    stepScanAnimal: '扫描动物',
+    stepScanAnimalDesc: '扫描动物来发现动物分类',
+    stepScanFood: '扫描食物',
+    stepScanFoodDesc: '扫描食物来发现食物分类',
+    stepScanNature: '扫描自然',
+    stepScanNatureDesc: '扫描自然来发现自然分类',
+    stepDiscoverMore: '发现更多',
+    stepDiscoverMoreDesc: '发现更多物体来扩展你的收藏',
+    stepTakeQuiz: '参加测验',
+    stepTakeQuizDesc: '参加测验来测试你的知识！',
+    stepSolvePuzzle: '完成拼图',
+    stepSolvePuzzleDesc: '完成拼图来锻炼你的技能！',
+    stepListenGame: '听力游戏',
+    stepListenGameDesc: '玩听力游戏来提高你的听力能力！',
+    stepChatWithAI: '与AI聊天',
+    stepChatWithAIDesc: '与AI聊天了解更多关于物体的知识！',
+    nextSteps: '🎯 下一步学习',
+
+    // Scan toast messages
+    toastScanFirstObject: '把相机对准某个东西开始吧！📷',
+    toastScanAnimal: '把相机对准动物！🐾',
+    toastScanFood: '把相机对准食物！🍎',
+    toastScanNature: '把相机对准自然！🌿',
+    toastDiscoverMore: '去发现更多物体吧！🔍',
   },
 };
 

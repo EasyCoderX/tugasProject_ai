@@ -120,7 +120,8 @@ export default function GamesTab({
           />
         ) : (
           <div
-            className="border-2 border-green-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow rounded-3xl overflow-hidden"
+            className="border-2 border-green-200 cursor-pointer hover:shadow-md transition-shadow rounded-3xl overflow-hidden"
+            style={{ background: 'var(--kid-card-bg)' }}
             onClick={(currentResult || history.length > 0) ? onStartQuiz : undefined}
           >
             <div className="p-4 flex items-center gap-3">
@@ -158,7 +159,8 @@ export default function GamesTab({
           />
         ) : (
           <div
-            className="border-2 border-purple-200 bg-white/90 cursor-pointer hover:shadow-md transition-shadow rounded-3xl overflow-hidden"
+            className="border-2 border-purple-200 cursor-pointer hover:shadow-md transition-shadow rounded-3xl overflow-hidden"
+            style={{ background: 'var(--kid-card-bg)' }}
             onClick={(capturedImage || history.length > 0) ? onStartPuzzle : undefined}
           >
             <div className="p-4 flex items-center gap-3">

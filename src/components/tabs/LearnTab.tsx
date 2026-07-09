@@ -125,7 +125,7 @@ export default function LearnTab({
                       alt={getNameInLang(opt, language)}
                       className="w-full aspect-square object-cover"
                     />
-                    <div className="p-2 text-sm font-medium text-gray-700 truncate font-fredoka bg-white/50">
+                    <div className="p-2 text-sm font-medium text-gray-700 truncate font-fredoka">
                       {opt.emoji} {getNameInLang(opt, language)}
                     </div>
                   </motion.button>

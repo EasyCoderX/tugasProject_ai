@@ -45,7 +45,8 @@ export default function ThemePortal({ isOpen, onClose, currentTheme, onSelectThe
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 50 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl bg-white"
+            className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl"
+            style={{ background: 'var(--kid-card-bg)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Decorative top wave */}
@@ -147,7 +148,8 @@ export default function ThemePortal({ isOpen, onClose, currentTheme, onSelectThe
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center gap-1 z-10"
+                          className="absolute inset-0 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center gap-1 z-10"
+                          style={{ background: 'color-mix(in srgb, var(--kid-card-bg) 70%, transparent)' }}
                         >
                           <motion.div
                             animate={{ rotate: [0, 15, -15, 0] }}
@@ -181,7 +183,8 @@ export default function ThemePortal({ isOpen, onClose, currentTheme, onSelectThe
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/80 hover:bg-white shadow-md flex items-center justify-center text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full shadow-md flex items-center justify-center text-gray-500 hover:text-gray-700"
+              style={{ background: 'var(--kid-card-bg)' }}
             >
               ✕
             </Button>

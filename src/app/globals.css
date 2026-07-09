@@ -218,7 +218,13 @@
   color: #f8fafc;
 }
 
-/* Night theme text color overrides for hardcoded gray classes */
+/* Night theme text color overrides
+ *
+ * NOTE: !important di sini defense-in-depth — koreksi SEJATINYA ada di
+ * penggunaan var(--kid-card-bg) di setiap elemen kartu. Semua kartu harus
+ * pakai var(--kid-card-bg) sebagai background agar otomatis gelap di night
+ * dan terang di tema lain. Override ini hanya safety net.
+ */
 [data-theme="night"] .text-gray-800 { color: #f8fafc !important; }
 [data-theme="night"] .text-gray-700 { color: #e2e8f0 !important; }
 [data-theme="night"] .text-gray-600 { color: #cbd5e1 !important; }
@@ -862,15 +868,8 @@
 .theme-text-light { color: var(--theme-text, #4b5563); }
 .theme-text-muted { color: var(--theme-text, #6b7280); opacity: 0.7; }
 
-/* Override hardcoded gray text for dark themes */
-[data-theme="night"] .text-gray-800,
-[data-theme="night"] .text-gray-700,
-[data-theme="night"] .text-gray-600 { color: #f8fafc !important; }
-
-[data-theme="night"] .text-gray-500,
-[data-theme="night"] .text-gray-400 { color: #cbd5e1 !important; }
-
-/* Override card colors for night theme */
+/* Override card colors for night theme — NOTE: text-gray override sudah
+   di baris ~222, jangan duplikasi di sini */
 [data-theme="night"] .bg-card { background: rgba(30, 41, 59, 0.8) !important; }
 [data-theme="night"] .text-card-foreground { color: #f8fafc !important; }
 [data-theme="night"] .text-muted-foreground { color: #94a3b8 !important; }

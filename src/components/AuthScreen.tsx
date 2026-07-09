@@ -95,8 +95,9 @@ export default function AuthScreen({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white/95 rounded-3xl shadow-2xl p-8 w-full max-w-sm border-4 backdrop-blur-sm relative z-10"
+            className="rounded-3xl shadow-2xl p-8 w-full max-w-sm border-4 backdrop-blur-sm relative z-10"
             style={{
+              background: 'var(--kid-card-bg)',
               borderColor: `rgb(var(--kid-accent-rgb) / 0.3)`,
               boxShadow: `0 20px 60px var(--kid-shadow-color)`
             }}

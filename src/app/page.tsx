@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/hooks/use-toast';
 import Sidebar from '@/components/Sidebar';
 import MobileTabBar from '@/components/MobileTabBar';
 import Header from '@/components/Header';
@@ -373,6 +374,19 @@ export default function HomePage() {
 
   // ---- i18n ----
   const { t } = useTranslation(language);
+
+  // Map plan action IDs to i18n keys for localized step names/descriptions
+  const planStepI18n: Record<string, { nameKey: string; descKey: string }> = {
+    scan_first_object: { nameKey: 'stepScanFirstObject', descKey: 'stepScanFirstObjectDesc' },
+    scan_animal:       { nameKey: 'stepScanAnimal',       descKey: 'stepScanAnimalDesc' },
+    scan_food:         { nameKey: 'stepScanFood',         descKey: 'stepScanFoodDesc' },
+    scan_nature:       { nameKey: 'stepScanNature',       descKey: 'stepScanNatureDesc' },
+    discover_more:     { nameKey: 'stepDiscoverMore',     descKey: 'stepDiscoverMoreDesc' },
+    take_quiz:         { nameKey: 'stepTakeQuiz',         descKey: 'stepTakeQuizDesc' },
+    solve_puzzle:      { nameKey: 'stepSolvePuzzle',      descKey: 'stepSolvePuzzleDesc' },
+    listen_game:       { nameKey: 'stepListenGame',       descKey: 'stepListenGameDesc' },
+    chat_with_ai:      { nameKey: 'stepChatWithAI',       descKey: 'stepChatWithAIDesc' },
+  };
 
   // Handle theme portal event from Sidebar
   useEffect(() => {
@@ -855,6 +869,20 @@ export default function HomePage() {
   }, [puzzleHistoryItem, activeHistoryItem, capturedImage, history]);
 
   const handleNavigateStep = useCallback((actionId: string) => {
+    // Toast key lookup per action — scan actions get a fun prompt
+    const scanToastMap: Record<string, string> = {
+      scan_first_object: 'toastScanFirstObject',
+      scan_animal: 'toastScanAnimal',
+      scan_food: 'toastScanFood',
+      scan_nature: 'toastScanNature',
+      discover_more: 'toastDiscoverMore',
+    };
+
+    const toastKey = scanToastMap[actionId];
+    if (toastKey) {
+      toast({ title: t(toastKey) });
+    }
+
     switch (actionId) {
       case 'scan_first_object':
       case 'scan_animal':
@@ -862,6 +890,7 @@ export default function HomePage() {
       case 'scan_nature':
       case 'discover_more':
         setActiveTab('home');
+        setTimeout(() => startCamera(), 100);
         break;
       case 'take_quiz':
         setActiveTab('games');
@@ -879,7 +908,7 @@ export default function HomePage() {
         setActiveTab('chat');
         break;
     }
-  }, [startQuiz, startPuzzle, startListen]);
+  }, [startQuiz, startPuzzle, startListen, startCamera, t]);
 
   const placePiece = (idx: number) => {
     if (selectedPiece === null) return;
@@ -1183,8 +1212,9 @@ export default function HomePage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 w-full"
+                className="backdrop-blur-xl rounded-3xl p-8 w-full"
                 style={{
+                  background: 'var(--kid-card-bg)',
                   border: `2px solid ${currentTheme.accentHex}20`,
                   boxShadow: `0 25px 60px ${currentTheme.accentHex}15, 0 0 0 1px ${currentTheme.accentHex}08`,
                 }}
@@ -1425,7 +1455,7 @@ export default function HomePage() {
 
         {/* Settings Dialog */}
         <Dialog open={showSettings} onOpenChange={setShowSettings}>
-          <DialogContent className="max-w-sm" style={{ background: currentTheme.textHex === '#f8fafc' ? 'rgba(30,30,50,0.95)' : 'white', borderColor: currentTheme.textHex === '#f8fafc' ? 'rgba(99,102,241,0.3)' : undefined }}>
+          <DialogContent className="max-w-sm" style={{ background: 'var(--kid-card-bg)', borderColor: 'rgb(var(--kid-accent-rgb) / 0.3)' }}>
             <DialogHeader>
               <DialogTitle style={{ color: currentTheme.textHex === '#f8fafc' ? '#e2e8f0' : undefined }}>⚙️ {t('settings')}</DialogTitle>
               <DialogDescription>{t('settingsDescription', { defaultValue: 'Customize your theme, language, and account settings' })}</DialogDescription>
@@ -1451,7 +1481,7 @@ export default function HomePage() {
                         color: currentTheme.textHex === '#f8fafc' ? '#ffffff' : currentTheme.textHex,
                         background: language === l.id
                           ? currentTheme.accentHex
-                          : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.12)' : 'white',
+                          : 'var(--kid-card-bg)',
                         border: `2px solid ${language === l.id ? currentTheme.accentHex : currentTheme.textHex === '#f8fafc' ? 'rgba(255,255,255,0.15)' : '#e5e7eb'}`,
                         boxShadow: language === l.id ? `0 0 16px ${currentTheme.accentHex}88` : currentTheme.textHex === '#f8fafc' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
                       }}>
@@ -1698,7 +1728,7 @@ export default function HomePage() {
                   }}>
                     <CardContent className="p-4">
                       <h4 className="font-bold flex items-center gap-2 mb-3 font-fredoka" style={{ color: currentTheme.textHex }}>
-                        🎯 {t('achievements') || 'Next Learning Steps'}
+                        {t('nextSteps')}
                       </h4>
                       <div className="space-y-2">
                         {nextSteps.map((step, i) => (
@@ -1718,8 +1748,8 @@ export default function HomePage() {
                               {step.icon}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{step.actionName}</p>
-                              <p className="text-xs text-gray-500 truncate">{step.description}</p>
+                              <p className="text-sm font-medium truncate">{planStepI18n[step.actionId] ? t(planStepI18n[step.actionId].nameKey) : step.actionName}</p>
+                              <p className="text-xs text-gray-500 truncate">{planStepI18n[step.actionId] ? t(planStepI18n[step.actionId].descKey) : step.description}</p>
                             </div>
                             <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                           </motion.button>
@@ -2054,14 +2084,14 @@ export default function HomePage() {
                           style={m.role === 'user' ? {
                             background: `linear-gradient(135deg, ${currentTheme.accentHex}, ${currentTheme.accentHex}cc)`,
                           } : {
-                            background: 'white',
+                            background: 'var(--kid-card-bg)',
                             border: `2px solid ${currentTheme.accentHex}20`,
                           }}>
                           {m.content}
                         </div>
                       </div>
                     ))}
-                    {chatLoading && <div className="flex justify-start"><div className="bg-white px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse border border-gray-300">{t('chatThinking')}</div></div>}
+                    {chatLoading && <div className="flex justify-start"><div className="px-3 py-2 rounded-2xl text-sm text-gray-400 animate-pulse border border-gray-300" style={{ background: 'var(--kid-card-bg)' }}>{t('chatThinking')}</div></div>}
                   </div>
                 </ScrollArea>
                 <div className="flex gap-2 p-2" style={{ borderTop: `1px solid ${currentTheme.accentHex}18` }}>
@@ -2224,7 +2254,7 @@ export default function HomePage() {
                     }}>
                       <CardContent className="p-4">
                         <h4 className="font-bold flex items-center gap-2 mb-3 font-fredoka" style={{ color: currentTheme.textHex }}>
-                          🎯 Next Learning Steps
+                          {t('nextSteps')}
                         </h4>
                         <div className="space-y-2">
                           {nextSteps.map((step, i) => (
@@ -2244,8 +2274,8 @@ export default function HomePage() {
                                 {step.icon}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{step.actionName}</p>
-                                <p className="text-xs text-gray-500 truncate">{step.description}</p>
+                                <p className="text-sm font-medium truncate">{planStepI18n[step.actionId] ? t(planStepI18n[step.actionId].nameKey) : step.actionName}</p>
+                                <p className="text-xs text-gray-500 truncate">{planStepI18n[step.actionId] ? t(planStepI18n[step.actionId].descKey) : step.description}</p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
                             </motion.button>
@@ -2278,14 +2308,16 @@ function Btn({ icon, onClick, color, disabled, accentHex }: {
     orange: 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-orange-300/50',
     purple: 'bg-gradient-to-br from-purple-400 to-purple-500 text-white shadow-purple-300/50',
     teal: 'bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-teal-300/50',
-    white: 'bg-white/90 shadow-md text-gray-600 hover:text-gray-800',
+    white: 'shadow-md text-gray-600 hover:text-gray-800',
     theme: '',
   };
-  const themeStyle = color === 'theme' && accentHex ? {
+  const themeStyle: React.CSSProperties = color === 'theme' && accentHex ? {
     background: `linear-gradient(135deg, ${accentHex}, ${accentHex}cc)`,
     boxShadow: `0 4px 15px ${accentHex}40`,
     color: 'white',
-  } as React.CSSProperties : undefined;
+  } : color === 'white' ? {
+    background: 'var(--kid-card-bg)',
+  } : {};
   return <motion.div whileTap={{ scale: 0.9 }}><Button onClick={onClick} disabled={disabled} style={themeStyle} className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg ${colors[color]} disabled:opacity-50`}>{icon}</Button></motion.div>;
 }
 

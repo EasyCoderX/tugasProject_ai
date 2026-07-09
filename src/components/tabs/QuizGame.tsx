@@ -90,9 +90,10 @@ export default function QuizGame({
                           : 'bg-gray-50 text-gray-400 opacity-60')
                     : quizAnswer === opt
                       ? 'bg-blue-100 border-2 border-blue-400 text-blue-700 shadow-md'
-                      : 'bg-white border-2 hover:shadow-lg hover:scale-105 active:scale-95 cursor-pointer'
+                      : 'border-2 hover:shadow-lg hover:scale-105 active:scale-95 cursor-pointer'
                   }`}
                 style={{
+                  background: (quizAnswer === null || (!quizAnswer && !quizRevealed)) ? 'var(--kid-card-bg)' : undefined,
                   borderColor: quizAnswer && quizRevealed
                     ? (opt === quizCorrectAnswer ? 'rgb(34, 197, 94)' : opt === quizAnswer ? 'rgb(239, 68, 68)' : 'rgb(var(--kid-accent-rgb))')
                     : quizAnswer === opt
