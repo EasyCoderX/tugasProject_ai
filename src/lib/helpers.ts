@@ -41,6 +41,12 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface InferredFact {
+  emoji: string;
+  label: string;
+  derivation: string;
+}
+
 export interface PortalUserInfo {
   id: string;
   isPro: boolean;
